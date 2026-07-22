@@ -84,13 +84,14 @@ describe('TrainsService', () => {
     expect(result.directions[0].trains).toEqual([]);
   });
 
-  it('급행 미정차역에서는 급행 열차를 제외한다', async () => {
+  it('급행 미정차역이어도 급행 열차를 그대로 유지한다 (상류 API가 이미 걸러줌)', async () => {
     const { service } = build(async () => [
       rawTrain({ trainId: 'EX', trainType: 'EXPRESS' }),
       rawTrain({ trainId: 'LO', trainType: 'LOCAL' }),
     ]);
     const result = await service.getTrains('9', 증미);
-    expect(result.directions[0].trains.map((t) => t.trainId)).toEqual(['LO']);
+    expect(result.directions[0].trains.map((t) => t.trainId)).toEqual(['EX', 'LO']);
+    expect(result.directions[0].trains.find((t) => t.trainId === 'EX')?.trainType).toBe('EXPRESS');
   });
 
   it('급행 정차역에서는 급행 열차를 유지한다', async () => {
@@ -100,6 +101,17 @@ describe('TrainsService', () => {
     ]);
     const result = await service.getTrains('9', 염창);
     expect(result.directions[0].trains.map((t) => t.trainId)).toEqual(['EX']);
+  });
+
+  it('trainType은 EXPRESS와 LOCAL 모두 변형 없이 그대로 전달된다', async () => {
+    const { service } = build(async () => [
+      rawTrain({ trainId: 'EX', trainType: 'EXPRESS' }),
+      rawTrain({ trainId: 'LO', trainType: 'LOCAL' }),
+    ]);
+    const result = await service.getTrains('9', 증미);
+    const byId = Object.fromEntries(result.directions[0].trains.map((t) => [t.trainId, t.trainType]));
+    expect(byId['EX']).toBe('EXPRESS');
+    expect(byId['LO']).toBe('LOCAL');
   });
 
   it('도착이 빠른 열차부터 정렬한다', async () => {

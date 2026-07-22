@@ -73,7 +73,7 @@ export class TrainsService {
       directionName: names[directionId],
       trains: raws
         .filter((raw) => raw.directionId === directionId)
-        .map((raw) => this.toTrain(lineId, station, raw))
+        .map((raw) => this.toTrain(lineId, raw))
         .filter((train): train is Train => train !== null)
         .sort(byArrivalSoonest),
     }));
@@ -87,7 +87,7 @@ export class TrainsService {
     };
   }
 
-  private toTrain(lineId: string, selected: Station, raw: RawTrain): Train | null {
+  private toTrain(lineId: string, raw: RawTrain): Train | null {
     const current = this.lines.findStationByName(lineId, raw.currentStationName);
     if (!current) {
       // 역명 표기가 예상과 다르면 여기서 드러난다(스펙 2절 2번).
@@ -95,10 +95,9 @@ export class TrainsService {
       return null;
     }
 
-    // 선택한 역에 서지 않는 급행은 사용자에게 의미가 없으므로 제외한다.
-    // 실제 API는 이미 정차하지 않는 급행을 걸러서 내려주지만(스펙 2절 2번), 이 필터는
-    // 그 동작이 바뀌더라도 안전하도록 남겨둔다.
-    if (raw.trainType === 'EXPRESS' && !selected.isExpressStop) return null;
+    // 상류 API는 선택한 역에 서지 않는 급행을 이미 걸러서 내려준다(스펙 2절 2번).
+    // 여기서 isExpressStop으로 다시 거르면, 그 값이 틀렸을 때 실제로 오는 급행을
+    // 조용히 삭제하는 최악의 실패로 이어지므로 필터링하지 않는다.
 
     return {
       trainId: raw.trainId,
