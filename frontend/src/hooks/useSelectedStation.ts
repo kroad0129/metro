@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Station } from '../types/subway';
+import type { Station } from '../types/subway';
 
 export const STORAGE_KEY = 'subway-tracker:selected-station';
 

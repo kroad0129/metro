@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Station, Train } from '../types/subway';
+import type { Station, Train } from '../types/subway';
 import { buildTrack, formatRemaining, trainLeftPercent, TRACK_SPAN } from './trackPosition';
 
 const stations: Station[] = Array.from({ length: 38 }, (_, i) => ({

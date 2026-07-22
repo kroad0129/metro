@@ -1,4 +1,4 @@
-import { StationsResponse, TrainsResponse } from '../types/subway';
+import type { StationsResponse, TrainsResponse } from '../types/subway';
 import { requestJson } from './client';
 
 const LINE_ID = '9';

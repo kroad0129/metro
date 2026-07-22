@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ApiError } from '../api/client';
 import { getStations } from '../api/subway';
-import { Station } from '../types/subway';
+import type { Station } from '../types/subway';
 
 export function useStations() {
   const [stations, setStations] = useState<Station[]>([]);

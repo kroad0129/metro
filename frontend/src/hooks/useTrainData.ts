@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '../api/client';
 import { getTrains } from '../api/subway';
-import { TrainsResponse } from '../types/subway';
+import type { TrainsResponse } from '../types/subway';
 
 export const REFRESH_COOLDOWN_MS = 3000;
 

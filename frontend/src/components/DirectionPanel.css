@@ -1,0 +1,90 @@
+.direction-panel {
+  padding: 1rem 0.75rem 1.25rem;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.direction-panel__title {
+  margin: 0 0 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.direction-panel__empty,
+.direction-panel__next {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.line-track {
+  position: relative;
+  height: 3.5rem;
+}
+
+.line-track__rail {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #ccc;
+}
+
+.line-track__stations {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 0.6rem;
+}
+
+.line-track__station {
+  font-size: 0.7rem;
+  color: #999;
+  white-space: nowrap;
+}
+
+.line-track__station--selected {
+  color: #1a1a1a;
+  font-weight: 700;
+}
+
+.line-track__trains {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.train-marker {
+  position: absolute;
+  top: -0.35rem;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: left 0.4s ease-out;
+}
+
+.train-marker__dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: #c8102e;
+}
+
+.train-marker__time {
+  margin-top: 1.6rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #c8102e;
+  white-space: nowrap;
+}
+
+.train-marker__badge {
+  margin-top: 0.15rem;
+  padding: 0 0.25rem;
+  font-size: 0.6rem;
+  color: #fff;
+  background: #c8102e;
+  border-radius: 0.2rem;
+}

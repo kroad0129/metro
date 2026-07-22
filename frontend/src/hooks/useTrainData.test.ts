@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from '../api/subway';
 import { ApiError } from '../api/client';
-import { TrainsResponse } from '../types/subway';
+import type { TrainsResponse } from '../types/subway';
 import { useTrainData } from './useTrainData';
 
 const response = {

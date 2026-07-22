@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { Station } from '../types/subway';
+import type { Station } from '../types/subway';
 import { STORAGE_KEY, useSelectedStation } from './useSelectedStation';
 
 const stations: Station[] = [

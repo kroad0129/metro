@@ -1,4 +1,4 @@
-import { DirectionId, Station, Train } from '../types/subway';
+import type { DirectionId, Station, Train } from '../types/subway';
 
 /** 선택한 역 앞으로 몇 개 역까지 트랙에 그릴지. 역간 1.5~2분이므로 약 8분치 시야다. */
 export const TRACK_SPAN = 4;
