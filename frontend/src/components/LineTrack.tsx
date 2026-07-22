@@ -6,9 +6,11 @@ type Props = {
   track: Station[];
   trains: Train[];
   selected: Station;
+  nowMs: number;
+  updatedAt: string;
 };
 
-export function LineTrack({ track, trains, selected }: Props) {
+export function LineTrack({ track, trains, selected, nowMs, updatedAt }: Props) {
   return (
     <div className="line-track">
       <div className="line-track__rail" aria-hidden="true" />
@@ -39,6 +41,9 @@ export function LineTrack({ track, trains, selected }: Props) {
               train={train}
               leftPercent={left}
               showExpressBadge={train.trainType === 'EXPRESS'}
+              nowMs={nowMs}
+              updatedAt={updatedAt}
+              selectedStationName={selected.name}
             />
           );
         })}

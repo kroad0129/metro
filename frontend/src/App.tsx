@@ -2,6 +2,7 @@ import { DirectionPanel } from './components/DirectionPanel';
 import { RefreshBar } from './components/RefreshBar';
 import { StationSelector } from './components/StationSelector';
 import { ErrorView, LoadingView, StaleBanner } from './components/states/StatusViews';
+import { useNow } from './hooks/useNow';
 import { useSelectedStation } from './hooks/useSelectedStation';
 import { useStations } from './hooks/useStations';
 import { useTrainData } from './hooks/useTrainData';
@@ -11,6 +12,8 @@ export default function App() {
   const { stations, loading: stationsLoading, error: stationsError } = useStations();
   const { selected, select } = useSelectedStation(stations);
   const { data, loading, error, refresh, canRefresh } = useTrainData(selected?.stationId ?? null);
+  // 화면 전용 초 단위 틱 — 데이터는 다시 조회하지 않는다(스펙 참고: useTrainData 주석).
+  const nowMs = useNow();
 
   if (stationsLoading) {
     return (
@@ -48,6 +51,8 @@ export default function App() {
               stations={stations}
               selected={selected}
               block={block}
+              nowMs={nowMs}
+              updatedAt={data.updatedAt}
             />
           ))}
         </div>
@@ -59,6 +64,7 @@ export default function App() {
           loading={loading}
           canRefresh={canRefresh}
           onRefresh={refresh}
+          nowMs={nowMs}
         />
       )}
     </main>

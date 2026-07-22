@@ -41,10 +41,32 @@ export function trainLeftPercent(track: Station[], train: Train): number | null 
   return Math.min(100, Math.max(0, percent));
 }
 
-/** 남은 시간을 사람이 읽는 문자열로. 분은 올림한다 — 늦게 잡는 쪽이 안전하다. */
+/** 남은 시간을 사람이 읽는 문자열로. 분/초를 함께 보여준다 — 초가 0이면 초는 생략한다. */
 export function formatRemaining(seconds: number | null): string {
   if (seconds === null) return '—';
   if (seconds <= 0) return '곧 도착';
   if (seconds < 60) return `${seconds}초`;
-  return `${Math.ceil(seconds / 60)}분`;
+
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return rest === 0 ? `${minutes}분` : `${minutes}분 ${rest}초`;
+}
+
+/**
+ * 데이터가 갱신된 시각(updatedAtIso) 이후 브라우저에서 흐른 초만큼 남은 시간을 줄여 계산한다.
+ * 자동 재조회 없이 화면에서만 초 단위로 째깍이게 하기 위한 순수 함수 — 네트워크 호출은 없다.
+ * formatRelativeTime과 마찬가지로 파싱 불가능한 날짜는 null로 처리한다.
+ */
+export function remainingAt(
+  remainingSeconds: number | null,
+  updatedAtIso: string,
+  nowMs: number,
+): number | null {
+  if (remainingSeconds === null) return null;
+
+  const updatedMs = new Date(updatedAtIso).getTime();
+  if (!Number.isFinite(updatedMs)) return null;
+
+  const elapsedSeconds = Math.max(0, Math.floor((nowMs - updatedMs) / 1000));
+  return Math.max(0, remainingSeconds - elapsedSeconds);
 }

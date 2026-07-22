@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Station, Train } from '../types/subway';
-import { buildTrack, formatRemaining, trainLeftPercent, TRACK_SPAN } from './trackPosition';
+import { buildTrack, formatRemaining, remainingAt, trainLeftPercent, TRACK_SPAN } from './trackPosition';
 
 const stations: Station[] = Array.from({ length: 38 }, (_, i) => ({
   stationId: `${1009000900 + i + 1}`,
@@ -89,9 +89,14 @@ describe('formatRemaining', () => {
     expect(formatRemaining(45)).toBe('45초');
   });
 
-  it('1분 이상은 분으로 올림한다', () => {
+  it('1분 이상이면서 초가 남으면 분과 초를 함께 표시한다', () => {
+    expect(formatRemaining(385)).toBe('6분 25초');
+    expect(formatRemaining(125)).toBe('2분 5초');
+  });
+
+  it('정확히 나누어떨어지는 분은 초를 생략한다', () => {
     expect(formatRemaining(60)).toBe('1분');
-    expect(formatRemaining(125)).toBe('3분');
+    expect(formatRemaining(180)).toBe('3분');
   });
 
   it('알 수 없으면 대시로 표시한다', () => {
@@ -100,5 +105,35 @@ describe('formatRemaining', () => {
 
   it('0 이하는 곧 도착으로 표시한다', () => {
     expect(formatRemaining(0)).toBe('곧 도착');
+    expect(formatRemaining(-30)).toBe('곧 도착');
+  });
+});
+
+describe('remainingAt', () => {
+  const updatedAt = '2026-07-22T14:00:00+09:00';
+  const updatedMs = new Date(updatedAt).getTime();
+
+  it('경과한 만큼 초를 뺀다', () => {
+    expect(remainingAt(120, updatedAt, updatedMs + 25_000)).toBe(95);
+  });
+
+  it('1초 미만의 경과는 버림한다', () => {
+    expect(remainingAt(120, updatedAt, updatedMs + 999)).toBe(120);
+  });
+
+  it('0 밑으로는 내려가지 않는다', () => {
+    expect(remainingAt(10, updatedAt, updatedMs + 60_000)).toBe(0);
+  });
+
+  it('remainingSeconds가 null이면 null을 반환한다', () => {
+    expect(remainingAt(null, updatedAt, updatedMs)).toBeNull();
+  });
+
+  it('updatedAtIso가 잘못되면 null을 반환한다', () => {
+    expect(remainingAt(120, 'not-a-date', updatedMs)).toBeNull();
+  });
+
+  it('시계 오차로 now가 더 이르면 경과를 0으로 취급한다', () => {
+    expect(remainingAt(120, updatedAt, updatedMs - 5_000)).toBe(120);
   });
 });

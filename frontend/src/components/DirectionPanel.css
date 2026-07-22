@@ -65,11 +65,32 @@
   transition: left 0.4s ease-out;
 }
 
-.train-marker__dot {
+/* dot-wrap은 예전 .train-marker__dot과 정확히 같은 크기를 유지한다 —
+   train-marker가 align-items:center로 이 요소를 중앙 정렬하므로,
+   화살표(absolute)를 더해도 점의 중심(=trainLeftPercent 위치)이 밀리지 않는다. */
+.train-marker__dot-wrap {
+  position: relative;
   width: 0.75rem;
   height: 0.75rem;
+}
+
+.train-marker__dot {
+  display: block;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   background: #c8102e;
+}
+
+.train-marker__arrow {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 1px;
+  font-size: 0.5rem;
+  line-height: 1;
+  color: #c8102e;
 }
 
 .train-marker__time {
