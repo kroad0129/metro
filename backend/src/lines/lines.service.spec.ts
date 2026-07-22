@@ -22,7 +22,7 @@ describe('LinesService', () => {
   });
 
   it('stationId로 역을 찾는다', () => {
-    const station = service.findStationById('9', '9-8');
+    const station = service.findStationById('9', '1009000908');
     expect(station?.name).toBe('증미');
     expect(station?.order).toBe(8);
   });
@@ -50,10 +50,14 @@ describe('LinesService', () => {
   });
 
   it('증미역은 급행 미정차역이다', () => {
-    expect(service.findStationById('9', '9-8')?.isExpressStop).toBe(false);
+    expect(service.findStationById('9', '1009000908')?.isExpressStop).toBe(
+      false,
+    );
   });
 
   it('김포공항역은 급행 정차역이다', () => {
-    expect(service.findStationById('9', '9-2')?.isExpressStop).toBe(true);
+    expect(service.findStationById('9', '1009000902')?.isExpressStop).toBe(
+      true,
+    );
   });
 });
