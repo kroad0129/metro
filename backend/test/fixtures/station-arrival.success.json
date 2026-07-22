@@ -1,0 +1,29 @@
+{
+  "errorMessage": { "status": 200, "code": "INFO-000", "message": "정상 처리되었습니다.", "total": 4 },
+  "realtimeArrivalList": [
+    {
+      "subwayId": "1009", "updnLine": "상행", "trainLineNm": "개화행 - 등촌방면",
+      "statnNm": "증미", "btrainSttus": "일반", "btrainNo": "9134",
+      "bstatnNm": "개화", "barvlDt": "125", "arvlMsg2": "전역 출발",
+      "arvlMsg3": "등촌", "arvlCd": "3"
+    },
+    {
+      "subwayId": "1009", "updnLine": "상행", "trainLineNm": "김포공항행 - 등촌방면",
+      "statnNm": "증미", "btrainSttus": "급행", "btrainNo": "9711",
+      "bstatnNm": "김포공항", "barvlDt": "300", "arvlMsg2": "3분 후 (염창)",
+      "arvlMsg3": "염창", "arvlCd": "99"
+    },
+    {
+      "subwayId": "1009", "updnLine": "하행", "trainLineNm": "중앙보훈병원행 - 가양방면",
+      "statnNm": "증미", "btrainSttus": "일반", "btrainNo": "9256",
+      "bstatnNm": "중앙보훈병원", "barvlDt": "60", "arvlMsg2": "전역 진입",
+      "arvlMsg3": "가양", "arvlCd": "4"
+    },
+    {
+      "subwayId": "1009", "updnLine": "하행", "trainLineNm": "중앙보훈병원행 - 가양방면",
+      "statnNm": "증미", "btrainSttus": "일반", "btrainNo": "9260",
+      "bstatnNm": "중앙보훈병원", "barvlDt": "0", "arvlMsg2": "출발",
+      "arvlMsg3": "마곡나루", "arvlCd": "2"
+    }
+  ]
+}
