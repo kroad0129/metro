@@ -1,6 +1,7 @@
 {
   "lineId": "9",
   "lineName": "서울 지하철 9호선",
+  "externalLineId": "1009",
   "stations": [
     { "stationId": "1009000901", "name": "개화",       "order": 1,  "isExpressStop": false },
     { "stationId": "1009000902", "name": "김포공항",   "order": 2,  "isExpressStop": true  },
