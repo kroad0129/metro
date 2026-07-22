@@ -14,3 +14,5 @@ Task 3: complete (2909db9..1ee0482, 재리뷰 clean, 전체 59 tests green)
 Task 4: complete (793be46..107ade3, 리뷰 지적 1건 수정 완료, 69 tests green)
   리뷰 Critical(테스트 공백): 만료 삭제가 관찰 불가 -> size getter + 삭제 제거 실험으로 검증
 Task 5: 구현 87dd43b (리뷰는 배치 A에 합침). 이후 배치 방식으로 전환 (태스크 2개/dispatch)
+Task 5,6,7: complete (107ade3..eb1d634, 배치 A 리뷰 clean, 유닛 94 + e2e 4 green) -- 백엔드 완성
+  Minor(최종 리뷰 대상): 캐시 히트 시 updatedAt이 storedAt이 아닌 now / 502-500 경로 e2e 미커버
