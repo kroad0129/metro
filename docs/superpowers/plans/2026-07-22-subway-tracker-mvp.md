@@ -22,6 +22,33 @@
 - `directionId`: `UP` = 개화 방면 = `order` 감소 방향. `DOWN` = 중앙보훈병원 방면 = `order` 증가 방향.
 - 각 Task 끝에서 커밋한다.
 
+## 실측 검증 반영 (2026-07-22, Task 3 이후)
+
+서울시 `sample` 공개 키로 실제 응답을 받아 검증했다. 스펙 2절의 "검증 필요 항목"은 아래로 대체된다.
+
+**확인된 사실**
+- `arvlCd` 코드값은 추측이 정확했다: `0:진입 1:도착 2:출발 3:전역출발 4:전역진입 5:전역도착 99:운행중` (벤더 명세 확인)
+- `arvlMsg3`는 역명만 온다 — `"선유도"`, `"양천향교"`. `"역"` 접미사 없음
+- `btrainSttus`는 `급행 / ITX / 일반 / 특급` 중 하나
+- `barvlDt`가 `"0"`인 경우는 흔하다 (열차가 해당 역에 정차 중일 때)
+- 역 ID는 `1009000900 + order` 규칙을 따른다. 내부 ID `9-N` 대신 실제 ID를 쓴다
+- **도착정보 API는 해당 역에 서지 않는 급행을 이미 제외해서 준다.** 증미역 응답에 급행 0대, 가양역 응답에 급행 2대. 급행 필터는 이중 안전장치로만 남긴다
+
+**설계가 틀렸던 부분 (수정 완료)**
+- `updnLine`은 **쓰면 안 된다.** 이 API는 개화행을 `"하행"`으로 표기하며, 자매 API인 `realtimePosition`은 같은 방향을 반대로 표기한다. 방향은 `statnFid`(이전역ID)와 `statnTid`(다음역ID) 비교로 구한다 — `Number(statnTid) < Number(statnFid)` → `UP`
+- **환승역에서 다른 노선 열차가 섞여 온다.** 당산역 응답에 2호선 열차 3대가 포함된다. `subwayId`가 노선의 `externalLineId`(9호선 = `"1009"`)와 일치하는 행만 남긴다
+
+**남은 미검증 항목**
+- 일일 호출 한도의 정확한 수치와 초과 시 응답 코드. 벤더 명세의 오류 목록에 일일 제한 코드가 없다. `INFO-000`/`INFO-200` 외의 모든 코드는 `UPSTREAM_UNAVAILABLE`로 처리한다
+- `arvlCd` 0/4/5와 `btrainSttus` `"특급"`/`"ITX"`는 실제 응답에서 아직 관측되지 않았다 (인라인 객체로 테스트)
+
+**Task 4 이후에 반영해야 할 계약 변경**
+- `Line` 타입에 `externalLineId: string` 필드가 있다 (`line9.json`의 `"externalLineId": "1009"`)
+- `mapArrivalResponse(raw: unknown, expectedLineId: string): RawTrain[]` — 두 번째 인자가 추가됐다
+- `line9.json`의 `stationId`는 `1009000901` … `1009000938`이다
+
+---
+
 ## 공유 타입 계약
 
 여러 Task가 이 타입들을 주고받는다. **Task 1에서 백엔드에, Task 8에서 프론트엔드에 각각 정의**하며 두 정의는 필드명이 동일해야 한다.
@@ -178,44 +205,44 @@ export type Line = {
   "lineId": "9",
   "lineName": "서울 지하철 9호선",
   "stations": [
-    { "stationId": "9-1",  "name": "개화",       "order": 1,  "isExpressStop": false },
-    { "stationId": "9-2",  "name": "김포공항",   "order": 2,  "isExpressStop": true  },
-    { "stationId": "9-3",  "name": "공항시장",   "order": 3,  "isExpressStop": false },
-    { "stationId": "9-4",  "name": "신방화",     "order": 4,  "isExpressStop": false },
-    { "stationId": "9-5",  "name": "마곡나루",   "order": 5,  "isExpressStop": true  },
-    { "stationId": "9-6",  "name": "양천향교",   "order": 6,  "isExpressStop": false },
-    { "stationId": "9-7",  "name": "가양",       "order": 7,  "isExpressStop": true  },
-    { "stationId": "9-8",  "name": "증미",       "order": 8,  "isExpressStop": false },
-    { "stationId": "9-9",  "name": "등촌",       "order": 9,  "isExpressStop": false },
-    { "stationId": "9-10", "name": "염창",       "order": 10, "isExpressStop": true  },
-    { "stationId": "9-11", "name": "신목동",     "order": 11, "isExpressStop": false },
-    { "stationId": "9-12", "name": "선유도",     "order": 12, "isExpressStop": false },
-    { "stationId": "9-13", "name": "당산",       "order": 13, "isExpressStop": true  },
-    { "stationId": "9-14", "name": "국회의사당", "order": 14, "isExpressStop": false },
-    { "stationId": "9-15", "name": "여의도",     "order": 15, "isExpressStop": true  },
-    { "stationId": "9-16", "name": "샛강",       "order": 16, "isExpressStop": false },
-    { "stationId": "9-17", "name": "노량진",     "order": 17, "isExpressStop": true  },
-    { "stationId": "9-18", "name": "노들",       "order": 18, "isExpressStop": false },
-    { "stationId": "9-19", "name": "흑석",       "order": 19, "isExpressStop": false },
-    { "stationId": "9-20", "name": "동작",       "order": 20, "isExpressStop": true  },
-    { "stationId": "9-21", "name": "구반포",     "order": 21, "isExpressStop": false },
-    { "stationId": "9-22", "name": "신반포",     "order": 22, "isExpressStop": false },
-    { "stationId": "9-23", "name": "고속터미널", "order": 23, "isExpressStop": true  },
-    { "stationId": "9-24", "name": "사평",       "order": 24, "isExpressStop": false },
-    { "stationId": "9-25", "name": "신논현",     "order": 25, "isExpressStop": true  },
-    { "stationId": "9-26", "name": "언주",       "order": 26, "isExpressStop": false },
-    { "stationId": "9-27", "name": "선정릉",     "order": 27, "isExpressStop": true  },
-    { "stationId": "9-28", "name": "삼성중앙",   "order": 28, "isExpressStop": false },
-    { "stationId": "9-29", "name": "봉은사",     "order": 29, "isExpressStop": true  },
-    { "stationId": "9-30", "name": "종합운동장", "order": 30, "isExpressStop": true  },
-    { "stationId": "9-31", "name": "삼전",       "order": 31, "isExpressStop": false },
-    { "stationId": "9-32", "name": "석촌고분",   "order": 32, "isExpressStop": false },
-    { "stationId": "9-33", "name": "석촌",       "order": 33, "isExpressStop": true  },
-    { "stationId": "9-34", "name": "송파나루",   "order": 34, "isExpressStop": false },
-    { "stationId": "9-35", "name": "한성백제",   "order": 35, "isExpressStop": false },
-    { "stationId": "9-36", "name": "올림픽공원", "order": 36, "isExpressStop": true  },
-    { "stationId": "9-37", "name": "둔촌오륜",   "order": 37, "isExpressStop": false },
-    { "stationId": "9-38", "name": "중앙보훈병원","order": 38, "isExpressStop": true  }
+    { "stationId": "1009000901",  "name": "개화",       "order": 1,  "isExpressStop": false },
+    { "stationId": "1009000902",  "name": "김포공항",   "order": 2,  "isExpressStop": true  },
+    { "stationId": "1009000903",  "name": "공항시장",   "order": 3,  "isExpressStop": false },
+    { "stationId": "1009000904",  "name": "신방화",     "order": 4,  "isExpressStop": false },
+    { "stationId": "1009000905",  "name": "마곡나루",   "order": 5,  "isExpressStop": true  },
+    { "stationId": "1009000906",  "name": "양천향교",   "order": 6,  "isExpressStop": false },
+    { "stationId": "1009000907",  "name": "가양",       "order": 7,  "isExpressStop": true  },
+    { "stationId": "1009000908",  "name": "증미",       "order": 8,  "isExpressStop": false },
+    { "stationId": "1009000909",  "name": "등촌",       "order": 9,  "isExpressStop": false },
+    { "stationId": "1009000910", "name": "염창",       "order": 10, "isExpressStop": true  },
+    { "stationId": "1009000911", "name": "신목동",     "order": 11, "isExpressStop": false },
+    { "stationId": "1009000912", "name": "선유도",     "order": 12, "isExpressStop": false },
+    { "stationId": "1009000913", "name": "당산",       "order": 13, "isExpressStop": true  },
+    { "stationId": "1009000914", "name": "국회의사당", "order": 14, "isExpressStop": false },
+    { "stationId": "1009000915", "name": "여의도",     "order": 15, "isExpressStop": true  },
+    { "stationId": "1009000916", "name": "샛강",       "order": 16, "isExpressStop": false },
+    { "stationId": "1009000917", "name": "노량진",     "order": 17, "isExpressStop": true  },
+    { "stationId": "1009000918", "name": "노들",       "order": 18, "isExpressStop": false },
+    { "stationId": "1009000919", "name": "흑석",       "order": 19, "isExpressStop": false },
+    { "stationId": "1009000920", "name": "동작",       "order": 20, "isExpressStop": true  },
+    { "stationId": "1009000921", "name": "구반포",     "order": 21, "isExpressStop": false },
+    { "stationId": "1009000922", "name": "신반포",     "order": 22, "isExpressStop": false },
+    { "stationId": "1009000923", "name": "고속터미널", "order": 23, "isExpressStop": true  },
+    { "stationId": "1009000924", "name": "사평",       "order": 24, "isExpressStop": false },
+    { "stationId": "1009000925", "name": "신논현",     "order": 25, "isExpressStop": true  },
+    { "stationId": "1009000926", "name": "언주",       "order": 26, "isExpressStop": false },
+    { "stationId": "1009000927", "name": "선정릉",     "order": 27, "isExpressStop": true  },
+    { "stationId": "1009000928", "name": "삼성중앙",   "order": 28, "isExpressStop": false },
+    { "stationId": "1009000929", "name": "봉은사",     "order": 29, "isExpressStop": true  },
+    { "stationId": "1009000930", "name": "종합운동장", "order": 30, "isExpressStop": true  },
+    { "stationId": "1009000931", "name": "삼전",       "order": 31, "isExpressStop": false },
+    { "stationId": "1009000932", "name": "석촌고분",   "order": 32, "isExpressStop": false },
+    { "stationId": "1009000933", "name": "석촌",       "order": 33, "isExpressStop": true  },
+    { "stationId": "1009000934", "name": "송파나루",   "order": 34, "isExpressStop": false },
+    { "stationId": "1009000935", "name": "한성백제",   "order": 35, "isExpressStop": false },
+    { "stationId": "1009000936", "name": "올림픽공원", "order": 36, "isExpressStop": true  },
+    { "stationId": "1009000937", "name": "둔촌오륜",   "order": 37, "isExpressStop": false },
+    { "stationId": "1009000938", "name": "중앙보훈병원","order": 38, "isExpressStop": true  }
   ]
 }
 ```
@@ -249,13 +276,13 @@ describe('LinesService', () => {
   });
 
   it('stationId로 역을 찾는다', () => {
-    const station = service.findStationById('9', '9-8');
+    const station = service.findStationById('9', '1009000908');
     expect(station?.name).toBe('증미');
     expect(station?.order).toBe(8);
   });
 
   it('없는 stationId는 null을 반환한다', () => {
-    expect(service.findStationById('9', '9-999')).toBeNull();
+    expect(service.findStationById('9', '1009000999')).toBeNull();
   });
 
   it('역 이름으로 역을 찾는다', () => {
@@ -277,11 +304,11 @@ describe('LinesService', () => {
   });
 
   it('증미역은 급행 미정차역이다', () => {
-    expect(service.findStationById('9', '9-8')?.isExpressStop).toBe(false);
+    expect(service.findStationById('9', '1009000908')?.isExpressStop).toBe(false);
   });
 
   it('김포공항역은 급행 정차역이다', () => {
-    expect(service.findStationById('9', '9-2')?.isExpressStop).toBe(true);
+    expect(service.findStationById('9', '1009000902')?.isExpressStop).toBe(true);
   });
 });
 ```
@@ -1354,7 +1381,7 @@ import { RawTrain } from './types';
 import { LineNotFoundError, StationNotFoundError } from './trains.errors';
 import { TrainsService } from './trains.service';
 
-const 증미 = '9-8';
+const 증미 = '1009000908';
 
 function rawTrain(over: Partial<RawTrain> = {}): RawTrain {
   return {
@@ -1384,7 +1411,7 @@ describe('TrainsService', () => {
 
   it('없는 역은 StationNotFoundError를 던진다', async () => {
     const { service } = build(async () => []);
-    await expect(service.getTrains('9', '9-999')).rejects.toBeInstanceOf(StationNotFoundError);
+    await expect(service.getTrains('9', '1009000999')).rejects.toBeInstanceOf(StationNotFoundError);
   });
 
   it('선택한 역 정보를 응답에 담는다', async () => {
@@ -1417,7 +1444,7 @@ describe('TrainsService', () => {
     const { service } = build(async () => [rawTrain({ currentStationName: '등촌' })]);
     const result = await service.getTrains('9', 증미);
     expect(result.directions[0].trains[0].currentStation).toEqual({
-      stationId: '9-9', name: '등촌', order: 9, isExpressStop: false,
+      stationId: '1009000909', name: '등촌', order: 9, isExpressStop: false,
     });
   });
 
@@ -1443,7 +1470,7 @@ describe('TrainsService', () => {
   });
 
   it('급행 정차역에서는 급행 열차를 유지한다', async () => {
-    const 염창 = '9-10';
+    const 염창 = '1009000910';
     const { service } = build(async () => [
       rawTrain({ trainId: 'EX', trainType: 'EXPRESS', currentStationName: '신목동' }),
     ]);
@@ -1827,7 +1854,7 @@ import { TrainsController } from '../src/trains/trains.controller';
 import { TrainsService } from '../src/trains/trains.service';
 import { RawTrain } from '../src/trains/types';
 
-const 증미 = '9-8';
+const 증미 = '1009000908';
 
 async function createApp(fetchImpl: () => Promise<RawTrain[]>): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({
@@ -1872,7 +1899,7 @@ describe('GET /api/lines/:lineId/stations/:stationId/trains', () => {
 
   it('없는 역은 404 STATION_NOT_FOUND', async () => {
     app = await createApp(async () => []);
-    const res = await request(app.getHttpServer()).get('/api/lines/9/stations/9-999/trains').expect(404);
+    const res = await request(app.getHttpServer()).get('/api/lines/9/stations/1009000999/trains').expect(404);
     expect(res.body.error.code).toBe('STATION_NOT_FOUND');
   });
 
@@ -1926,7 +1953,7 @@ npm run start:dev
 ```
 
 ```bash
-curl -i http://localhost:3000/api/lines/9/stations/9-999/trains
+curl -i http://localhost:3000/api/lines/9/stations/1009000999/trains
 ```
 
 Expected: 404 + `STATION_NOT_FOUND`. 확인 후 서버 종료.
@@ -2081,8 +2108,8 @@ describe('getStations', () => {
 describe('getTrains', () => {
   it('역 ID로 열차 엔드포인트를 호출한다', async () => {
     const fetchMock = mockFetch(200, { directions: [] });
-    await getTrains('9-8');
-    expect(fetchMock).toHaveBeenCalledWith('/api/lines/9/stations/9-8/trains');
+    await getTrains('1009000908');
+    expect(fetchMock).toHaveBeenCalledWith('/api/lines/9/stations/1009000908/trains');
   });
 
   it('역 ID를 URL 인코딩한다', async () => {
@@ -2093,8 +2120,8 @@ describe('getTrains', () => {
 
   it('오류 응답을 ApiError로 변환한다', async () => {
     mockFetch(404, { error: { code: 'STATION_NOT_FOUND', message: '지원하지 않는 역입니다' } });
-    await expect(getTrains('9-999')).rejects.toBeInstanceOf(ApiError);
-    await expect(getTrains('9-999')).rejects.toMatchObject({ code: 'STATION_NOT_FOUND' });
+    await expect(getTrains('1009000999')).rejects.toBeInstanceOf(ApiError);
+    await expect(getTrains('1009000999')).rejects.toMatchObject({ code: 'STATION_NOT_FOUND' });
   });
 
   it('오류 본문을 읽을 수 없으면 UNKNOWN 코드를 쓴다', async () => {
@@ -2108,12 +2135,12 @@ describe('getTrains', () => {
         },
       }),
     );
-    await expect(getTrains('9-8')).rejects.toMatchObject({ code: 'UNKNOWN' });
+    await expect(getTrains('1009000908')).rejects.toMatchObject({ code: 'UNKNOWN' });
   });
 
   it('네트워크 실패는 NETWORK_ERROR로 변환한다', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
-    await expect(getTrains('9-8')).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
+    await expect(getTrains('1009000908')).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
   });
 });
 ```
@@ -2228,7 +2255,7 @@ import { Station, Train } from '../types/subway';
 import { buildTrack, formatRemaining, trainLeftPercent, TRACK_SPAN } from './trackPosition';
 
 const stations: Station[] = Array.from({ length: 38 }, (_, i) => ({
-  stationId: `9-${i + 1}`,
+  stationId: `${1009000900 + i + 1}`,
   name: `역${i + 1}`,
   order: i + 1,
   isExpressStop: false,
@@ -2441,8 +2468,8 @@ import { Station } from '../types/subway';
 import { STORAGE_KEY, useSelectedStation } from './useSelectedStation';
 
 const stations: Station[] = [
-  { stationId: '9-8', name: '증미', order: 8, isExpressStop: false },
-  { stationId: '9-9', name: '등촌', order: 9, isExpressStop: false },
+  { stationId: '1009000908', name: '증미', order: 8, isExpressStop: false },
+  { stationId: '1009000909', name: '등촌', order: 9, isExpressStop: false },
 ];
 
 beforeEach(() => localStorage.clear());
@@ -2455,31 +2482,31 @@ describe('useSelectedStation', () => {
 
   it('역을 선택하면 상태와 localStorage에 반영된다', () => {
     const { result } = renderHook(() => useSelectedStation(stations));
-    act(() => result.current.select('9-9'));
+    act(() => result.current.select('1009000909'));
     expect(result.current.selected?.name).toBe('등촌');
-    expect(localStorage.getItem(STORAGE_KEY)).toBe('9-9');
+    expect(localStorage.getItem(STORAGE_KEY)).toBe('1009000909');
   });
 
   it('저장된 역이 있으면 그 역으로 시작한다', () => {
-    localStorage.setItem(STORAGE_KEY, '9-8');
+    localStorage.setItem(STORAGE_KEY, '1009000908');
     const { result } = renderHook(() => useSelectedStation(stations));
     expect(result.current.selected?.name).toBe('증미');
   });
 
   it('저장된 역이 목록에 없으면 선택 없음으로 시작한다', () => {
-    localStorage.setItem(STORAGE_KEY, '9-999');
+    localStorage.setItem(STORAGE_KEY, '1009000999');
     const { result } = renderHook(() => useSelectedStation(stations));
     expect(result.current.selected).toBeNull();
   });
 
   it('역 목록이 아직 비어 있으면 선택하지 않는다', () => {
-    localStorage.setItem(STORAGE_KEY, '9-8');
+    localStorage.setItem(STORAGE_KEY, '1009000908');
     const { result } = renderHook(() => useSelectedStation([]));
     expect(result.current.selected).toBeNull();
   });
 
   it('목록이 나중에 도착하면 저장된 역을 복원한다', () => {
-    localStorage.setItem(STORAGE_KEY, '9-8');
+    localStorage.setItem(STORAGE_KEY, '1009000908');
     const { result, rerender } = renderHook(({ list }) => useSelectedStation(list), {
       initialProps: { list: [] as Station[] },
     });
@@ -2506,7 +2533,7 @@ import { useTrainData } from './useTrainData';
 
 const response = {
   line: { id: '9', name: '서울 지하철 9호선' },
-  station: { stationId: '9-8', name: '증미', order: 8, isExpressStop: false },
+  station: { stationId: '1009000908', name: '증미', order: 8, isExpressStop: false },
   directions: [],
   updatedAt: '2026-07-22T14:00:00+09:00',
   stale: false,
@@ -2527,14 +2554,14 @@ describe('useTrainData', () => {
 
   it('역 ID가 주어지면 즉시 한 번 조회한다', async () => {
     const spy = vi.spyOn(api, 'getTrains').mockResolvedValue(response);
-    const { result } = renderHook(() => useTrainData('9-8'));
+    const { result } = renderHook(() => useTrainData('1009000908'));
     await waitFor(() => expect(result.current.data).toEqual(response));
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
   it('자동으로 재조회하지 않는다', async () => {
     const spy = vi.spyOn(api, 'getTrains').mockResolvedValue(response);
-    const { result } = renderHook(() => useTrainData('9-8'));
+    const { result } = renderHook(() => useTrainData('1009000908'));
     await waitFor(() => expect(result.current.data).not.toBeNull());
     await act(async () => {
       vi.advanceTimersByTime(120_000);
@@ -2544,7 +2571,7 @@ describe('useTrainData', () => {
 
   it('refresh를 부르면 다시 조회한다', async () => {
     const spy = vi.spyOn(api, 'getTrains').mockResolvedValue(response);
-    const { result } = renderHook(() => useTrainData('9-8'));
+    const { result } = renderHook(() => useTrainData('1009000908'));
     await waitFor(() => expect(result.current.canRefresh).toBe(false));
     await act(async () => {
       vi.advanceTimersByTime(3001);
@@ -2558,7 +2585,7 @@ describe('useTrainData', () => {
 
   it('쿨다운 중에는 refresh가 무시된다', async () => {
     const spy = vi.spyOn(api, 'getTrains').mockResolvedValue(response);
-    const { result } = renderHook(() => useTrainData('9-8'));
+    const { result } = renderHook(() => useTrainData('1009000908'));
     await waitFor(() => expect(result.current.data).not.toBeNull());
     await act(async () => {
       result.current.refresh();
@@ -2570,17 +2597,17 @@ describe('useTrainData', () => {
   it('역이 바뀌면 다시 조회한다', async () => {
     const spy = vi.spyOn(api, 'getTrains').mockResolvedValue(response);
     const { rerender } = renderHook(({ id }) => useTrainData(id), {
-      initialProps: { id: '9-8' as string | null },
+      initialProps: { id: '1009000908' as string | null },
     });
     await waitFor(() => expect(spy).toHaveBeenCalledTimes(1));
-    rerender({ id: '9-9' });
+    rerender({ id: '1009000909' });
     await waitFor(() => expect(spy).toHaveBeenCalledTimes(2));
-    expect(spy).toHaveBeenLastCalledWith('9-9');
+    expect(spy).toHaveBeenLastCalledWith('1009000909');
   });
 
   it('오류가 나면 error에 담는다', async () => {
     vi.spyOn(api, 'getTrains').mockRejectedValue(new ApiError('UPSTREAM_UNAVAILABLE', '실패'));
-    const { result } = renderHook(() => useTrainData('9-8'));
+    const { result } = renderHook(() => useTrainData('1009000908'));
     await waitFor(() => expect(result.current.error?.code).toBe('UPSTREAM_UNAVAILABLE'));
     expect(result.current.data).toBeNull();
   });
@@ -2590,7 +2617,7 @@ describe('useTrainData', () => {
       .spyOn(api, 'getTrains')
       .mockRejectedValueOnce(new ApiError('UPSTREAM_UNAVAILABLE', '실패'))
       .mockResolvedValue(response);
-    const { result } = renderHook(() => useTrainData('9-8'));
+    const { result } = renderHook(() => useTrainData('1009000908'));
     await waitFor(() => expect(result.current.error).not.toBeNull());
     await act(async () => {
       vi.advanceTimersByTime(3001);
@@ -2832,7 +2859,7 @@ import { DirectionBlock, Station, Train } from '../types/subway';
 import { DirectionPanel } from './DirectionPanel';
 
 const stations: Station[] = Array.from({ length: 38 }, (_, i) => ({
-  stationId: `9-${i + 1}`,
+  stationId: `${1009000900 + i + 1}`,
   name: `역${i + 1}`,
   order: i + 1,
   isExpressStop: i + 1 === 10,
@@ -3232,9 +3259,9 @@ import { STORAGE_KEY } from './hooks/useSelectedStation';
 import { Station, StationsResponse, TrainsResponse } from './types/subway';
 
 const stations: Station[] = [
-  { stationId: '9-7', name: '가양', order: 7, isExpressStop: true },
-  { stationId: '9-8', name: '증미', order: 8, isExpressStop: false },
-  { stationId: '9-9', name: '등촌', order: 9, isExpressStop: false },
+  { stationId: '1009000907', name: '가양', order: 7, isExpressStop: true },
+  { stationId: '1009000908', name: '증미', order: 8, isExpressStop: false },
+  { stationId: '1009000909', name: '등촌', order: 9, isExpressStop: false },
 ];
 
 const stationsResponse: StationsResponse = {
@@ -3294,7 +3321,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByLabelText('역')).toBeInTheDocument());
-    await userEvent.selectOptions(screen.getByLabelText('역'), '9-8');
+    await userEvent.selectOptions(screen.getByLabelText('역'), '1009000908');
 
     await waitFor(() => expect(screen.getByText('개화 방면')).toBeInTheDocument());
     expect(screen.getByText('중앙보훈병원 방면')).toBeInTheDocument();
@@ -3307,22 +3334,22 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByLabelText('역')).toBeInTheDocument());
-    await userEvent.selectOptions(screen.getByLabelText('역'), '9-8');
+    await userEvent.selectOptions(screen.getByLabelText('역'), '1009000908');
 
-    expect(localStorage.getItem(STORAGE_KEY)).toBe('9-8');
+    expect(localStorage.getItem(STORAGE_KEY)).toBe('1009000908');
   });
 
   it('저장된 역이 있으면 바로 조회한다', async () => {
-    localStorage.setItem(STORAGE_KEY, '9-8');
+    localStorage.setItem(STORAGE_KEY, '1009000908');
     vi.spyOn(api, 'getStations').mockResolvedValue(stationsResponse);
     const trainsSpy = vi.spyOn(api, 'getTrains').mockResolvedValue(trainsResponse());
     render(<App />);
-    await waitFor(() => expect(trainsSpy).toHaveBeenCalledWith('9-8'));
+    await waitFor(() => expect(trainsSpy).toHaveBeenCalledWith('1009000908'));
     expect(await screen.findByText('개화 방면')).toBeInTheDocument();
   });
 
   it('stale 응답이면 배너를 보여준다', async () => {
-    localStorage.setItem(STORAGE_KEY, '9-8');
+    localStorage.setItem(STORAGE_KEY, '1009000908');
     vi.spyOn(api, 'getStations').mockResolvedValue(stationsResponse);
     vi.spyOn(api, 'getTrains').mockResolvedValue(trainsResponse({ stale: true }));
     render(<App />);
@@ -3330,7 +3357,7 @@ describe('App', () => {
   });
 
   it('열차 조회가 실패하면 오류와 재시도 버튼을 보여준다', async () => {
-    localStorage.setItem(STORAGE_KEY, '9-8');
+    localStorage.setItem(STORAGE_KEY, '1009000908');
     vi.spyOn(api, 'getStations').mockResolvedValue(stationsResponse);
     vi.spyOn(api, 'getTrains').mockRejectedValue(
       new ApiError('UPSTREAM_UNAVAILABLE', '실시간 지하철 정보를 가져오지 못했습니다.'),
@@ -3347,7 +3374,7 @@ describe('App', () => {
   });
 
   it('새로고침 버튼은 쿨다운 동안 비활성화된다', async () => {
-    localStorage.setItem(STORAGE_KEY, '9-8');
+    localStorage.setItem(STORAGE_KEY, '1009000908');
     vi.spyOn(api, 'getStations').mockResolvedValue(stationsResponse);
     vi.spyOn(api, 'getTrains').mockResolvedValue(trainsResponse());
     render(<App />);
