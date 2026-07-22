@@ -2,7 +2,10 @@ import { Logger } from '@nestjs/common';
 import axios from 'axios';
 import { AppConfig } from '../config/configuration';
 import { RawTrain } from '../trains/types';
-import { UpstreamRateLimitedError, UpstreamUnavailableError } from './seoul-api.errors';
+import {
+  UpstreamRateLimitedError,
+  UpstreamUnavailableError,
+} from './seoul-api.errors';
 import { mapArrivalResponse } from './seoul-api.mapper';
 import { SeoulArrivalResponse } from './seoul-api.types';
 
@@ -22,9 +25,35 @@ const OK_CODES = ['INFO-000'];
 const INVALID_KEY_CODES = ['INFO-100'];
 
 const defaultHttpGet: HttpGet = async (url) => {
-  const response = await axios.get<SeoulArrivalResponse>(url, { timeout: 5000 });
+  const response = await axios.get<SeoulArrivalResponse>(url, {
+    timeout: 5000,
+  });
   return response.data;
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * 성공 응답은 errorMessage로 감싼 구조("wrapped": { errorMessage: { code, message } }),
+ * 실패 응답(INFO-100, INFO-200, 기타 ERROR-*)은 최상위에 code/message가 그대로 오는
+ * 평평한 구조("flat": { code, message })다. 실제 API로 검증됨(버그 리포트 참고).
+ * 두 구조 모두에서 code를 읽는다.
+ */
+function codeOf(body: Record<string, unknown>): string | undefined {
+  const wrapped = body.errorMessage;
+  if (isRecord(wrapped) && typeof wrapped.code === 'string')
+    return wrapped.code;
+  return typeof body.code === 'string' ? body.code : undefined;
+}
+
+function messageOf(body: Record<string, unknown>): string {
+  const wrapped = body.errorMessage;
+  if (isRecord(wrapped) && typeof wrapped.message === 'string')
+    return wrapped.message;
+  return typeof body.message === 'string' ? body.message : '';
+}
 
 export class SeoulApiClient {
   private readonly logger = new Logger(SeoulApiClient.name);
@@ -39,7 +68,10 @@ export class SeoulApiClient {
     return this.callCount;
   }
 
-  async fetchStationArrivals(stationName: string, expectedLineId: string): Promise<RawTrain[]> {
+  async fetchStationArrivals(
+    stationName: string,
+    expectedLineId: string,
+  ): Promise<RawTrain[]> {
     const url =
       `${this.config.seoulBaseUrl}/${this.config.seoulApiKey}` +
       `/json/realtimeStationArrival/0/20/${encodeURIComponent(stationName)}`;
@@ -55,7 +87,22 @@ export class SeoulApiClient {
       throw new UpstreamUnavailableError();
     }
 
-    const code = body.errorMessage?.code;
+    if (!isRecord(body)) {
+      this.logger.warn(
+        '서울시 API 응답 본문을 해석할 수 없습니다 (객체가 아님)',
+      );
+      throw new UpstreamUnavailableError();
+    }
+
+    const code = codeOf(body);
+    const hasList = Array.isArray(body.realtimeArrivalList);
+    if (!code && !hasList) {
+      this.logger.warn(
+        '서울시 API 응답에 인식 가능한 코드도 열차 목록도 없습니다',
+      );
+      throw new UpstreamUnavailableError();
+    }
+
     if (code && RATE_LIMIT_CODES.includes(code)) {
       this.logger.warn(`호출 제한 초과 (누적 ${this.callCount}회)`);
       throw new UpstreamRateLimitedError();
@@ -64,11 +111,13 @@ export class SeoulApiClient {
       return [];
     }
     if (code && INVALID_KEY_CODES.includes(code)) {
-      this.logger.warn(`서울시 API 인증키가 유효하지 않습니다: ${body.errorMessage?.message ?? ''}`);
+      this.logger.warn(
+        `서울시 API 인증키가 유효하지 않습니다: ${messageOf(body)}`,
+      );
       throw new UpstreamUnavailableError();
     }
     if (code && !OK_CODES.includes(code)) {
-      this.logger.warn(`알 수 없는 응답 코드: ${code} ${body.errorMessage?.message ?? ''}`);
+      this.logger.warn(`알 수 없는 응답 코드: ${code} ${messageOf(body)}`);
       throw new UpstreamUnavailableError();
     }
 

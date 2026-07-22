@@ -156,6 +156,34 @@ describe('TrainsService', () => {
     }
   });
 
+  it('외부 실패 시 캐시를 빈 배열로 덮어쓰지 않는다 (stale 경로 파괴 회귀 방지)', async () => {
+    jest.useFakeTimers();
+    try {
+      let shouldFail = false;
+      const { service, cache } = build(async () => {
+        if (shouldFail) throw new UpstreamUnavailableError();
+        return [rawTrain({ trainId: 'CACHED' })];
+      });
+
+      await service.getTrains('9', 증미);
+      const key = `trains:9:${증미}`;
+      expect(cache.get<RawTrain[]>(key)).toEqual([rawTrain({ trainId: 'CACHED' })]);
+
+      shouldFail = true;
+      jest.advanceTimersByTime(10_001); // TTL 경과, 하지만 stale 윈도우 이내
+
+      const result = await service.getTrains('9', 증미);
+      expect(result.stale).toBe(true);
+      expect(result.directions[0].trains.map((t) => t.trainId)).toEqual(['CACHED']);
+
+      // 실패 응답이 캐시를 빈 배열로 덮어쓰지 않았어야 한다.
+      const stillStale = cache.getStale<RawTrain[]>(key);
+      expect(stillStale?.value).toEqual([rawTrain({ trainId: 'CACHED' })]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('stale 데이터도 없으면 외부 오류를 그대로 던진다', async () => {
     const { service } = build(async () => {
       throw new UpstreamUnavailableError();
