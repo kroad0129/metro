@@ -363,16 +363,16 @@ docker-compose.yml
 **backend/Dockerfile** — 멀티 스테이지. 빌드 후 프로덕션 의존성만 남긴다.
 
 ```dockerfile
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 # npm ci → npm run build
-FROM node:20-alpine
+FROM node:22-alpine
 # npm ci --omit=dev + dist 복사 → node dist/main.js
 ```
 
 **frontend/Dockerfile** — Vite 빌드 결과를 nginx 이미지에 넣는다.
 
 ```dockerfile
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 # npm ci → npm run build → /app/dist
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
@@ -389,7 +389,7 @@ gzip on;
 
 ### 라즈베리파이 관련 주의 (배포 시)
 
-- `node:20-alpine`, `nginx:alpine` 모두 arm64를 지원하므로 64비트 OS면 그대로 동작한다.
+- `node:22-alpine`, `nginx:alpine` 모두 arm64를 지원하므로 64비트 OS면 그대로 동작한다.
 - **RAM 2GB 이하인 파이에서는 Vite 빌드가 메모리 부족으로 실패할 수 있다.** 스왑을 늘리거나, PC에서 `docker buildx --platform linux/arm64`로 빌드해 이미지를 옮긴다.
 - HTTPS는 도메인 연결 후 certbot으로 적용하며, 외부에는 80·443만 노출한다.
 - 이번 범위는 로컬 동작과 Docker 구성까지다. 실제 배포는 별도 단계에서 진행한다.

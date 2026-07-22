@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Node 20. TypeScript `strict: true`.
+- Node 22. TypeScript `strict: true`.
 - **서울시 API 키가 없다.** 실제 외부 호출을 하는 테스트를 작성하지 않는다. 모든 외부 응답은 `test/fixtures/`의 픽스처를 쓴다.
 - DB·Redis·WebSocket을 쓰지 않는다. 캐시는 NestJS 프로세스 메모리에만 존재한다.
 - **자동 폴링을 구현하지 않는다.** 조회 시점은 앱 진입·역 선택·새로고침 버튼 세 가지뿐이다.
@@ -3740,14 +3740,14 @@ dist
 `backend/Dockerfile`:
 
 ```dockerfile
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package*.json ./
@@ -3766,7 +3766,7 @@ nginx 설정은 `frontend/nginx.conf`에 둔다. 스펙 9절은 `nginx/nginx.con
 `frontend/Dockerfile`:
 
 ```dockerfile
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -3914,7 +3914,7 @@ docker compose up --build
 
 ## 라즈베리파이 배포 (미실행)
 
-- 64비트 Raspberry Pi OS 필요. `node:20-alpine`, `nginx:alpine` 모두 arm64를 지원한다.
+- 64비트 Raspberry Pi OS 필요. `node:22-alpine`, `nginx:alpine` 모두 arm64를 지원한다.
 - **RAM 2GB 이하에서는 Vite 빌드가 메모리 부족으로 실패할 수 있다.** 스왑을 늘리거나 PC에서 `docker buildx --platform linux/arm64`로 빌드해 이미지를 옮긴다.
 - HTTPS는 도메인 연결 후 certbot으로 적용하며 외부에는 80·443만 노출한다.
 ````
