@@ -53,4 +53,28 @@ describe('CacheService', () => {
     expect(cache.get('a')).toBe(1);
     expect(cache.get('b')).toBe(2);
   });
+
+  it('getStale이 staleMaxAge를 넘은 엔트리를 삭제한다', () => {
+    const cache = new CacheService(10_000, 300_000);
+    cache.set('k', { n: 1 });
+    expect(cache.size).toBe(1);
+    jest.advanceTimersByTime(300_001);
+    cache.getStale('k');
+    expect(cache.size).toBe(0);
+  });
+
+  it('TTL 경계에서 get은 정확히 경계에서도 신선한 값을 반환한다', () => {
+    const cache = new CacheService(10_000, 300_000);
+    cache.set('k', { n: 1 });
+    jest.advanceTimersByTime(10_000);
+    expect(cache.get('k')).toEqual({ n: 1 });
+  });
+
+  it('staleMaxAge 경계에서 getStale은 정확히 경계에서도 값을 반환한다', () => {
+    const cache = new CacheService(10_000, 300_000);
+    cache.set('k', { n: 1 });
+    jest.advanceTimersByTime(300_000);
+    const stale = cache.getStale<{ n: number }>('k');
+    expect(stale?.value).toEqual({ n: 1 });
+  });
 });

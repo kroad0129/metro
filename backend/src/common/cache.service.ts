@@ -15,6 +15,10 @@ export class CacheService {
     private readonly staleMaxAgeMs: number,
   ) {}
 
+  get size(): number {
+    return this.store.size;
+  }
+
   set<T>(key: string, value: T): void {
     this.store.set(key, { value, storedAt: Date.now() });
   }
