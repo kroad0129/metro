@@ -8,6 +8,8 @@ export type OnTrackTrain = {
   remaining: number | null;
   delayed: boolean;
   pos: { kind: 'station'; left: number } | { kind: 'segment'; left: number; width: number };
+  /** 시각적 자리가 겹칠 때의 줄 번호(0 = 첫 줄) — 겹친 열차는 아랫줄에 그린다. */
+  lane: number;
 };
 
 type Props = {
@@ -17,8 +19,10 @@ type Props = {
 };
 
 export function LineTrack({ track, trains, selected }: Props) {
+  // 아랫줄이 필요한 만큼 트랙을 세로로 늘린다 — 겹친 열차가 패널 밖으로 밀리지 않게.
+  const maxLane = trains.reduce((max, t) => Math.max(max, t.lane), 0);
   return (
-    <div className="line-track">
+    <div className="line-track" style={{ height: `calc(4rem + ${maxLane} * 2.8rem)` }}>
       <div className="line-track__rail" aria-hidden="true" />
 
       <div className="line-track__stations">
@@ -43,7 +47,7 @@ export function LineTrack({ track, trains, selected }: Props) {
       </div>
 
       <div className="line-track__trains">
-        {trains.map(({ train, remaining, delayed, pos }) =>
+        {trains.map(({ train, remaining, delayed, pos, lane }) =>
           pos.kind === 'station' ? (
             <TrainMarker
               key={train.trainId}
@@ -51,6 +55,7 @@ export function LineTrack({ track, trains, selected }: Props) {
               leftPercent={pos.left}
               remainingSeconds={remaining}
               delayed={delayed}
+              lane={lane}
               showExpressBadge={train.trainType === 'EXPRESS'}
               selectedStationName={selected.name}
             />
@@ -62,6 +67,7 @@ export function LineTrack({ track, trains, selected }: Props) {
               widthPercent={pos.width}
               remainingSeconds={remaining}
               delayed={delayed}
+              lane={lane}
               showExpressBadge={train.trainType === 'EXPRESS'}
               selectedStationName={selected.name}
             />

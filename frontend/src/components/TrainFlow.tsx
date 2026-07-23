@@ -11,6 +11,8 @@ type Props = {
   remainingSeconds: number | null;
   /** 운영사 추정 소요를 넘겨 같은 구간에 머무는 중 — 오래 흐르는 화살표가 버그가 아님을 알린다. */
   delayed: boolean;
+  /** 시각적 자리가 겹칠 때의 줄 번호 — 0이면 트랙 줄, 그 아래로 한 줄씩 내려간다. */
+  lane?: number;
   showExpressBadge: boolean;
   selectedStationName: string;
 };
@@ -26,22 +28,31 @@ export function TrainFlow({
   widthPercent,
   remainingSeconds,
   delayed,
+  lane = 0,
   showExpressBadge,
   selectedStationName,
 }: Props) {
   const typeClass = train.trainType === 'EXPRESS' ? 'train-flow--express' : 'train-flow--local';
+  // 막 출발한 열차는 글자로도 말한다 — 점이 화살표로 바뀐 순간이 "이게 뭔가" 싶지 않게.
+  const justDeparted = train.status === 'DEPARTED';
   const timeText = formatRemaining(remainingSeconds);
   const timeAria = timeText === '곧 도착' || timeText === '—' ? timeText : `${timeText} 후`;
-  const base = `${selectedStationName} 방향, 이동 중, ${timeAria}`;
+  const base = `${selectedStationName} 방향, ${justDeparted ? '방금 출발' : '이동 중'}, ${timeAria}`;
   const ariaLabel = delayed ? `${base}, 지연 중` : base;
 
   return (
     <div
       className={`train-flow ${typeClass}`}
       data-testid="train-flow"
-      style={{ left: `${leftPercent}%`, width: `${widthPercent}%` }}
+      data-lane={lane}
+      style={{ left: `${leftPercent}%`, width: `${widthPercent}%`, '--lane': lane } as React.CSSProperties}
       aria-label={ariaLabel}
     >
+      {justDeparted && (
+        <span className="train-flow__callout" aria-hidden="true">
+          출발
+        </span>
+      )}
       <span className="train-flow__chevrons" aria-hidden="true">
         <span className="train-flow__chev">›</span>
         <span className="train-flow__chev">›</span>

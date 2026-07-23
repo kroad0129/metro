@@ -63,7 +63,7 @@ describe('TrainMarker', () => {
     expect(screen.queryByText('곧 도착')).not.toBeInTheDocument();
   });
 
-  it('중간 역에 정차 중이면 그 역 위에 "도착"을 띄운다', () => {
+  it('중간 역에 서 있으면 그 역 위에 "정차"를 띄운다 — 내 역 도착과 헷갈리지 않게', () => {
     render(
       <TrainMarker
         train={{ ...train, status: 'ARRIVED' }}
@@ -74,8 +74,23 @@ describe('TrainMarker', () => {
         selectedStationName="증미"
       />,
     );
-    expect(screen.getByText('도착')).toBeInTheDocument();
+    expect(screen.getByText('정차')).toBeInTheDocument();
     expect(screen.getByText('1분 50초')).toBeInTheDocument(); // 시간은 그대로 보인다
+  });
+
+  it('중간 역에 들어서는 중이면 그 역 위에 "진입"을 띄운다 — 맥동만으로는 안 읽힌다', () => {
+    render(
+      <TrainMarker
+        train={{ ...train, status: 'APPROACHING', stationsAway: 1 }}
+        leftPercent={50}
+        delayed={false}
+        remainingSeconds={40}
+        showExpressBadge={false}
+        selectedStationName="증미"
+      />,
+    );
+    expect(screen.getByText('진입')).toBeInTheDocument();
+    expect(screen.getByText('40초')).toBeInTheDocument();
   });
 
   it('내 역에 진입 중이면 시간 대신 "곧 도착"을 띄운다', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Train } from '../types/subway';
-import { segmentPercents, trainPlacement } from './placement';
+import { assignLanes, segmentPercents, trainPlacement } from './placement';
 
 function train(over: Partial<Train> = {}): Train {
   return {
@@ -91,5 +91,55 @@ describe('segmentPercents — 구간을 트랙 좌표(%)로', () => {
 
   it('역이 하나뿐인 트랙(노선 끝)에는 구간이 없다', () => {
     expect(segmentPercents(0, 1, 0)).toBeNull();
+  });
+});
+
+describe('assignLanes — 겹치는 열차는 아랫줄로', () => {
+  it('겹치지 않으면 모두 첫 줄(0)이다', () => {
+    expect(
+      assignLanes([
+        { start: 0, end: 20 },
+        { start: 40, end: 60 },
+        { start: 70, end: 90 },
+      ]),
+    ).toEqual([0, 0, 0]);
+  });
+
+  it('같은 자리를 차지하면(급행이 일반과 같은 구간) 둘째가 아랫줄로 간다', () => {
+    expect(
+      assignLanes([
+        { start: 65, end: 85 },
+        { start: 65, end: 85 },
+      ]),
+    ).toEqual([0, 1]);
+  });
+
+  it('사슬처럼 겹치면 비는 가장 윗줄을 쓴다 — A·C는 안 겹치므로 같은 줄', () => {
+    expect(
+      assignLanes([
+        { start: 0, end: 30 },
+        { start: 20, end: 50 },
+        { start: 45, end: 70 },
+      ]),
+    ).toEqual([0, 1, 0]);
+  });
+
+  it('셋이 다 겹치면 세 줄이 된다', () => {
+    expect(
+      assignLanes([
+        { start: 10, end: 90 },
+        { start: 20, end: 80 },
+        { start: 30, end: 70 },
+      ]),
+    ).toEqual([0, 1, 2]);
+  });
+
+  it('끝점이 닿기만 하는 것(인접 구간)은 겹침이 아니다', () => {
+    expect(
+      assignLanes([
+        { start: 0, end: 50 },
+        { start: 50, end: 100 },
+      ]),
+    ).toEqual([0, 0]);
   });
 });

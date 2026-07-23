@@ -58,8 +58,20 @@ describe('TrainFlow — 이동 중 구간의 흐르는 화살표', () => {
     expect(screen.getByTestId('train-flow').getAttribute('aria-label')).toContain('지연 중');
   });
 
+  it('막 출발(DEPARTED)했으면 "출발"을 띄운다 — 점이 화살표로 바뀐 이유를 글자로 말한다', () => {
+    render(flow()); // 기본 fixture가 DEPARTED
+    expect(screen.getByText('출발')).toBeInTheDocument();
+    expect(screen.getByTestId('train-flow').getAttribute('aria-label')).toContain('방금 출발');
+  });
+
+  it('그냥 운행 중(TRAVELING)이면 "출발"을 띄우지 않는다', () => {
+    render(flow({ train: { ...train, status: 'TRAVELING', stationsAway: 2 } }));
+    expect(screen.queryByText('출발')).not.toBeInTheDocument();
+    expect(screen.getByTestId('train-flow').getAttribute('aria-label')).toContain('이동 중');
+  });
+
   it('aria-label이 이동 중임과 남은 시간을 말해준다', () => {
-    render(flow());
+    render(flow({ train: { ...train, status: 'TRAVELING' } }));
     const label = screen.getByTestId('train-flow').getAttribute('aria-label') ?? '';
     expect(label).toContain('증미');
     expect(label).toContain('이동 중');

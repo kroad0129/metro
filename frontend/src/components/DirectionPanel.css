@@ -70,7 +70,8 @@
 .train-marker {
   position: absolute;
   top: -0.35rem;
-  transform: translateX(-50%);
+  /* --lane: 시각적 자리가 겹친 열차는 한 줄(2.8rem)씩 아래로 내려 그린다. */
+  transform: translateX(-50%) translateY(calc(var(--lane, 0) * 2.8rem));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -180,6 +181,8 @@
   flex-direction: column;
   align-items: center;
   animation: train-marker-in 0.4s ease-out;
+  /* --lane: 시각적 자리가 겹친 열차는 한 줄(2.8rem)씩 아래로 내려 그린다. */
+  transform: translateY(calc(var(--lane, 0) * 2.8rem));
 }
 
 .train-flow--local {
@@ -188,6 +191,19 @@
 
 .train-flow--express {
   --train-color: #c8102e;
+}
+
+/* 막 출발한 열차의 "출발" — 화살표 위 가운데, 열차 색으로. */
+.train-flow__callout {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--train-color);
+  white-space: nowrap;
 }
 
 .train-flow__chevrons {

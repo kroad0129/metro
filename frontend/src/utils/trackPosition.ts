@@ -44,13 +44,15 @@ export function formatRemaining(seconds: number | null): string {
 }
 
 /**
- * 열차 위에 띄울 짧은 안내. 대부분 null이고:
- * - "도착": 어느 역이든 정차 중(ARRIVED). 내 역이면 "도착했다", 중간 역이면 "그 역에 서 있다".
- * - "곧 도착": 내 역(선택역)에 진입 중(APPROACHING). 코앞이라 초는 못 믿으니 문구로.
- * 표시 위치(시간 자리 vs 역 위)는 내 역 여부에 따라 TrainMarker가 정한다.
+ * 열차 위에 띄울 짧은 안내 — 기호(점·맥동)만으로는 안 읽혀서 상태를 글자로 함께 말한다.
+ * - 내 역: "도착" / "곧 도착" (시간 자리를 대신한다 — 행동 판단용 문구)
+ * - 중간 역: "정차" / "진입" (그 역 위에 뜬다 — "도착"이라 쓰면 내 역 도착과 헷갈린다)
+ * - 이동 중(운행·출발): null — 화살표 흐름이 말하고, 출발 직후 표시는 TrainFlow가 맡는다.
  */
-export function trainCallout(train: Train, isSelectedStation: boolean): '도착' | '곧 도착' | null {
-  if (train.status === 'ARRIVED') return '도착';
-  if (isSelectedStation && train.status === 'APPROACHING') return '곧 도착';
+export type Callout = '도착' | '곧 도착' | '정차' | '진입';
+
+export function trainCallout(train: Train, isSelectedStation: boolean): Callout | null {
+  if (train.status === 'ARRIVED') return isSelectedStation ? '도착' : '정차';
+  if (train.status === 'APPROACHING') return isSelectedStation ? '곧 도착' : '진입';
   return null;
 }

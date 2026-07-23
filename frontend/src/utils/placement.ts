@@ -28,6 +28,24 @@ export function trainPlacement(train: Train): Placement {
   return { kind: 'segment', fromGap: gap, toGap: gap - 1 };
 }
 
+/**
+ * 트랙 위 시각적 자리(%)가 겹치는 열차들에게 줄(lane)을 배정한다 — 겹치면 아랫줄로.
+ * 급행이 일반과 같은 구간을 달리거나 두 열차가 같은 역에 걸칠 때 글자·기호가
+ * 포개지는 것을 막는다. 입력 순서(가까운 열차 우선)대로 비는 가장 윗줄을 준다.
+ * 끝점이 닿기만 하는 인접 구간은 겹침으로 치지 않는다.
+ */
+export function assignLanes(intervals: { start: number; end: number }[]): number[] {
+  const laneEndsByLane: { start: number; end: number }[][] = [];
+  return intervals.map((interval) => {
+    let lane = 0;
+    while (laneEndsByLane[lane]?.some((o) => interval.start < o.end && o.start < interval.end)) {
+      lane += 1;
+    }
+    (laneEndsByLane[lane] ??= []).push(interval);
+    return lane;
+  });
+}
+
 /** 구간을 트랙 좌표로 — 시작 left(%)와 진행 방향 폭(%). 트랙 밖이면 null. */
 export function segmentPercents(
   maxGaps: number,

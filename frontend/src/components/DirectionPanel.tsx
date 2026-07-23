@@ -1,5 +1,5 @@
 import type { DirectionBlock, Station } from '../types/subway';
-import { segmentPercents, trainPlacement } from '../utils/placement';
+import { assignLanes, segmentPercents, trainPlacement } from '../utils/placement';
 import { buildTrack, formatRemaining } from '../utils/trackPosition';
 import {
   DELAY_NOTICE_SECONDS,
@@ -42,7 +42,16 @@ export function DirectionPanel({ stations, selected, block, nowMs }: Props) {
     };
   });
 
-  const onTrack = positioned.filter((p): p is typeof p & { pos: OnTrackTrain['pos'] } => p.pos !== null);
+  const placed = positioned.filter((p): p is typeof p & { pos: OnTrackTrain['pos'] } => p.pos !== null);
+  // 시각적 자리(점: 역 주변, 화살표: 구간 가운데 묶음)가 겹치는 열차는 아랫줄로 내린다.
+  const lanes = assignLanes(
+    placed.map(({ pos }) =>
+      pos.kind === 'station'
+        ? { start: pos.left - 8, end: pos.left + 8 }
+        : { start: pos.left + pos.width / 2 - 10, end: pos.left + pos.width / 2 + 10 },
+    ),
+  );
+  const onTrack: OnTrackTrain[] = placed.map((p, i) => ({ ...p, lane: lanes[i] }));
   // 트랙보다 먼 열차(지나간 열차는 제외) 중 가장 가까운 것 — "다음 열차"로 안내한다.
   const nextOffTrack = positioned.find((p) => p.pos === null && !p.passed);
 

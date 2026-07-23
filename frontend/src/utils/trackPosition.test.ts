@@ -91,18 +91,18 @@ describe('formatRemaining', () => {
 });
 
 describe('trainCallout', () => {
-  it('정차(ARRIVED) 중이면 어느 역이든 "도착"이다', () => {
-    expect(trainCallout(trainAt(증미, 20, 'ARRIVED'), true)).toBe('도착'); // 내 역
-    expect(trainCallout(trainAt(개화, 95, 'ARRIVED'), false)).toBe('도착'); // 중간 역
-  });
-
-  it('내 역에 진입 중이면 "곧 도착"이다', () => {
+  it('내 역 기준: 도착하면 "도착", 진입 중이면 "곧 도착"', () => {
+    expect(trainCallout(trainAt(증미, 20, 'ARRIVED'), true)).toBe('도착');
     expect(trainCallout(trainAt(증미, 20, 'APPROACHING'), true)).toBe('곧 도착');
   });
 
-  it('그 외(운행·출발, 남의 역 진입)에는 아무것도 표시하지 않는다', () => {
+  it('중간 역 기준: 서 있으면 "정차", 들어서는 중이면 "진입" — 내 역 도착과 헷갈리지 않게', () => {
+    expect(trainCallout(trainAt(개화, 95, 'ARRIVED'), false)).toBe('정차');
+    expect(trainCallout(trainAt(개화, 95, 'APPROACHING'), false)).toBe('진입');
+  });
+
+  it('이동 중(운행·출발)에는 아무것도 표시하지 않는다 — 화살표가 말한다', () => {
     expect(trainCallout(trainAt(개화, 95, 'TRAVELING'), false)).toBeNull();
     expect(trainCallout(trainAt(개화, 95, 'DEPARTED'), false)).toBeNull();
-    expect(trainCallout(trainAt(개화, 95, 'APPROACHING'), false)).toBeNull();
   });
 });

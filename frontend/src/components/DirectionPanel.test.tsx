@@ -151,6 +151,36 @@ describe('DirectionPanel', () => {
     expect(screen.queryByText('접근 중인 열차 없음')).not.toBeInTheDocument();
   });
 
+  it('같은 구간을 달리는 두 열차(일반 뒤 급행)는 아랫줄로 나뉜다 — 겹침 방지', () => {
+    const local = train(); // 전역→내 역 구간
+    const express = train({ trainId: 'T2', trainType: 'EXPRESS' });
+    render(
+      <DirectionPanel stations={stations} selected={증미} block={block([local, express])} nowMs={now} />,
+    );
+    const flows = screen.getAllByTestId('train-flow');
+    expect(flows.map((f) => f.dataset.lane)).toEqual(['0', '1']);
+  });
+
+  it('떨어진 구간의 열차들은 모두 첫 줄이다', () => {
+    const near = train(); // 전역→내 역
+    const far = train({ trainId: 'T2', stationsAway: 2, currentStation: stations[9] }); // 전전역→전역
+    render(
+      <DirectionPanel stations={stations} selected={증미} block={block([near, far])} nowMs={now} />,
+    );
+    const flows = screen.getAllByTestId('train-flow');
+    expect(flows.map((f) => f.dataset.lane)).toEqual(['0', '0']);
+  });
+
+  it('정차한 점과 같은 역에 걸친 다른 열차도 아랫줄로 나뉜다', () => {
+    const parked = train({ status: 'ARRIVED' }); // 전역(50%)에 정차한 점
+    const arriving = train({ trainId: 'T2', status: 'APPROACHING' }); // 같은 역에 진입
+    render(
+      <DirectionPanel stations={stations} selected={증미} block={block([parked, arriving])} nowMs={now} />,
+    );
+    const markers = screen.getAllByTestId('train-marker');
+    expect(markers.map((m) => m.dataset.lane)).toEqual(['0', '1']);
+  });
+
   it('급행 정차역에서는 급행 뱃지를 붙인다', () => {
     const express = train({ trainType: 'EXPRESS', currentStation: stations[11], stationsAway: 2 });
     render(<DirectionPanel stations={stations} selected={염창} block={block([express])} nowMs={now} />);

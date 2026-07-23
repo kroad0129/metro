@@ -9,6 +9,8 @@ type Props = {
   remainingSeconds: number | null;
   /** 운영사 추정 소요를 넘겨 같은 구간에 머무는 중 — 멈춘 점이 버그가 아님을 알린다. */
   delayed: boolean;
+  /** 시각적 자리가 겹칠 때의 줄 번호 — 0이면 트랙 줄, 그 아래로 한 줄씩 내려간다. */
+  lane?: number;
   showExpressBadge: boolean;
   /** 트랙 오른쪽 끝에 고정된 선택역 이름 — 내 역 도착 판단과 aria-label에 쓴다. */
   selectedStationName: string;
@@ -19,6 +21,7 @@ export function TrainMarker({
   leftPercent,
   remainingSeconds,
   delayed,
+  lane = 0,
   showExpressBadge,
   selectedStationName,
 }: Props) {
@@ -43,7 +46,8 @@ export function TrainMarker({
     <div
       className={`train-marker ${typeClass}${arrivingClass}`}
       data-testid="train-marker"
-      style={{ left: `${leftPercent}%` }}
+      data-lane={lane}
+      style={{ left: `${leftPercent}%`, '--lane': lane } as React.CSSProperties}
       aria-label={ariaLabel}
     >
       <span className="train-marker__dot-wrap">
