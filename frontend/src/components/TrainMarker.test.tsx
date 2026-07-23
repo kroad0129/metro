@@ -107,6 +107,32 @@ describe('TrainMarker', () => {
     expect(screen.getByText('도착')).toBeInTheDocument();
   });
 
+  it('진입(APPROACHING) 중이면 맥동 클래스가 붙는다 — 확정 정차와 구분된다', () => {
+    const { rerender } = render(
+      <TrainMarker
+        train={{ ...train, status: 'APPROACHING', stationsAway: 1 }}
+        leftPercent={50}
+        delayed={false}
+        remainingSeconds={40}
+        showExpressBadge={false}
+        selectedStationName="증미"
+      />,
+    );
+    expect(screen.getByTestId('train-marker')).toHaveClass('train-marker--arriving');
+
+    rerender(
+      <TrainMarker
+        train={{ ...train, status: 'ARRIVED', stationsAway: 1 }}
+        leftPercent={50}
+        delayed={false}
+        remainingSeconds={40}
+        showExpressBadge={false}
+        selectedStationName="증미"
+      />,
+    );
+    expect(screen.getByTestId('train-marker')).not.toHaveClass('train-marker--arriving');
+  });
+
   it('일반 열차는 초록, 급행 열차는 빨강 색상 클래스를 붙인다', () => {
     const { rerender } = render(
       <TrainMarker

@@ -76,10 +76,6 @@
   align-items: center;
   /* 새 열차가 뜰 때 톡 튀어나오지 않게 부드럽게 나타난다(첫 마운트에만 재생). */
   animation: train-marker-in 0.4s ease-out;
-  /* 가상 열차(virtualTrain)가 매초(useNow) 위치를 다시 계산한다. 1초짜리 등속 트랜지션이
-     그 초 단위 스텝 사이를 이어 점이 끊김 없이 흐르게 한다. 폴링으로 위상이 갱신돼
-     위치가 당겨질 때도 순간이동 대신 미끄러진다. */
-  transition: left 1s linear;
 }
 
 /* dot-wrap은 예전 .train-marker__dot과 정확히 같은 크기를 유지한다 —
@@ -119,6 +115,21 @@
   --train-color: #c8102e;
 }
 
+/* 진입 중(곧 도착) — 점이 조용히 맥동해 "들어오는 중"임을 알린다. 확정 정차는 맥동 없음. */
+@keyframes train-marker-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--train-color) 45%, transparent);
+  }
+  55% {
+    box-shadow: 0 0 0 0.4rem color-mix(in srgb, var(--train-color) 0%, transparent);
+  }
+}
+
+.train-marker--arriving .train-marker__dot {
+  animation: train-marker-pulse 1.4s ease-out infinite;
+}
+
 .train-marker__time {
   margin-top: 1.6rem;
   font-size: 0.8rem;
@@ -152,6 +163,97 @@
 }
 
 .train-marker__badge {
+  margin-top: 0.15rem;
+  padding: 0 0.25rem;
+  font-size: 0.6rem;
+  color: #fff;
+  background: #c8102e;
+  border-radius: 0.2rem;
+}
+
+/* 이동 중인 열차 — 두 역 사이 구간에서 진행 방향으로 흐르는 화살표.
+   구간 내 위치는 API가 모르는 정보라 점으로 주장하지 않는다(이산 배치 모델). */
+.train-flow {
+  position: absolute;
+  top: -0.55rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: train-marker-in 0.4s ease-out;
+}
+
+.train-flow--local {
+  --train-color: #1a7f37;
+}
+
+.train-flow--express {
+  --train-color: #c8102e;
+}
+
+.train-flow__chevrons {
+  display: flex;
+  justify-content: center;
+  gap: 0.35rem;
+  height: 1.1rem;
+  font-size: 1.1rem;
+  line-height: 1.1rem;
+  font-weight: 700;
+  color: var(--train-color);
+}
+
+/* 밝기 파도가 왼쪽→오른쪽(진행 방향)으로 흘러 "달리는 중"을 전달한다. */
+@keyframes train-flow-wave {
+  0%,
+  60%,
+  100% {
+    opacity: 0.2;
+  }
+  20% {
+    opacity: 1;
+  }
+}
+
+.train-flow__chev {
+  animation: train-flow-wave 1.4s linear infinite;
+}
+
+.train-flow__chev:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.train-flow__chev:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+.train-flow__chev:nth-child(4) {
+  animation-delay: 0.54s;
+}
+
+/* 화살표 아래 시간·배지 — TrainMarker의 시간 위치와 같은 높이에 오도록 맞춘다. */
+.train-flow__meta {
+  margin-top: 1.45rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.train-flow__time {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  white-space: nowrap;
+}
+
+.train-flow__delay {
+  margin-top: 0.1rem;
+  padding: 0 0.25rem;
+  font-size: 0.6rem;
+  color: #8a6d00;
+  background: #fff6e0;
+  border-radius: 0.2rem;
+}
+
+.train-flow__badge {
   margin-top: 0.15rem;
   padding: 0 0.25rem;
   font-size: 0.6rem;

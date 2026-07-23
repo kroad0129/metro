@@ -77,31 +77,24 @@ describe('DirectionPanel', () => {
     expect(screen.getByText('접근 중인 열차 없음')).toBeInTheDocument();
   });
 
-  it('트랙 안의 열차를 점으로 표시하고 남은 시간을 붙인다', () => {
+  it('이동 중(운행중·출발) 열차는 구간에 화살표 흐름으로 그린다 — 점 위치를 주장하지 않는다', () => {
+    // 전역(d=1)에서 이동 중 → 전역~내 역 구간(트랙 오른쪽 절반)
     render(<DirectionPanel stations={stations} selected={증미} block={block([train()])} nowMs={now} />);
-    const marker = screen.getByTestId('train-marker');
-    expect(marker).toBeInTheDocument();
-    expect(marker).toHaveTextContent('2분'); // barvlDt 120초
+    expect(screen.queryByTestId('train-marker')).not.toBeInTheDocument();
+    const flow = screen.getByTestId('train-flow');
+    expect(flow).toHaveStyle({ left: '50%', width: '50%' });
+    expect(flow).toHaveTextContent('2분'); // barvlDt 120초
   });
 
-  it('점 위치는 보고된 정거장 수(ordkey)에서 시작한다', () => {
-    // 1정거장 남음, 트랙 간격 2개 → 50%
-    render(<DirectionPanel stations={stations} selected={증미} block={block([train()])} nowMs={now} />);
-    expect(screen.getByTestId('train-marker')).toHaveStyle({ left: '50%' });
-  });
-
-  it('시간이 흐르면 열차가 전진하고 남은 시간도 줄어든다', () => {
-    // 120 → 24(=다음 위상 예상치) 구간의 절반이 지난 시점
+  it('시간이 흐르면 남은 시간은 줄지만 구간은 그대로다', () => {
     const later = now + 48_000;
     render(<DirectionPanel stations={stations} selected={증미} block={block([train()])} nowMs={later} />);
-    const marker = screen.getByTestId('train-marker');
-    const left = parseFloat(marker.style.left);
-    expect(left).toBeGreaterThan(50);
-    expect(left).toBeLessThan(100);
-    expect(marker).toHaveTextContent('1분 12초');
+    const flow = screen.getByTestId('train-flow');
+    expect(flow).toHaveStyle({ left: '50%', width: '50%' });
+    expect(flow).toHaveTextContent('1분 12초');
   });
 
-  it('정차(ARRIVED) 중이면 시간이 흘러도 그 역에 서 있다', () => {
+  it('정차(ARRIVED) 중이면 그 역 위에 점으로 선다', () => {
     render(
       <DirectionPanel
         stations={stations}
@@ -111,15 +104,38 @@ describe('DirectionPanel', () => {
       />,
     );
     expect(screen.getByTestId('train-marker')).toHaveStyle({ left: '50%' });
+    expect(screen.queryByTestId('train-flow')).not.toBeInTheDocument();
+  });
+
+  it('진입(APPROACHING) 중이면 그 역 위 맥동하는 점이다', () => {
+    render(
+      <DirectionPanel
+        stations={stations}
+        selected={증미}
+        block={block([train({ status: 'APPROACHING' })])}
+        nowMs={now}
+      />,
+    );
+    const marker = screen.getByTestId('train-marker');
+    expect(marker).toHaveStyle({ left: '50%' });
+    expect(marker).toHaveClass('train-marker--arriving');
   });
 
   it('전역에서 오래 지연돼도 도착했다고 하지 않는다', () => {
     render(
       <DirectionPanel stations={stations} selected={증미} block={block([train()])} nowMs={now + 500_000} />,
     );
-    const marker = screen.getByTestId('train-marker');
-    expect(parseFloat(marker.style.left)).toBeLessThan(100);
-    expect(marker).not.toHaveTextContent('곧 도착');
+    const flow = screen.getByTestId('train-flow');
+    expect(flow).not.toHaveTextContent('곧 도착');
+    expect(screen.queryByText('도착')).not.toBeInTheDocument();
+  });
+
+  it('내 역을 출발한 열차는 그리지도, 다음 열차로 세지도 않는다', () => {
+    const passed = train({ currentStation: 증미, stationsAway: 0, status: 'DEPARTED' });
+    render(<DirectionPanel stations={stations} selected={증미} block={block([passed])} nowMs={now} />);
+    expect(screen.queryByTestId('train-marker')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('train-flow')).not.toBeInTheDocument();
+    expect(screen.queryByText(/다음 열차/)).not.toBeInTheDocument();
   });
 
   it('트랙 밖의 열차는 점 대신 텍스트로 안내한다', () => {

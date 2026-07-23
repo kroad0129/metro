@@ -1,13 +1,13 @@
-import type { DirectionBlock, Station, Train } from '../types/subway';
+import type { DirectionBlock, Station } from '../types/subway';
+import { segmentPercents, trainPlacement } from '../utils/placement';
 import { buildTrack, formatRemaining } from '../utils/trackPosition';
 import {
   DELAY_NOTICE_SECONDS,
   leftPercentFromGaps,
   liveRemainingSeconds,
   stallSeconds,
-  virtualGaps,
 } from '../utils/virtualTrain';
-import { LineTrack } from './LineTrack';
+import { LineTrack, type OnTrackTrain } from './LineTrack';
 import './DirectionPanel.css';
 
 type Props = {
@@ -23,24 +23,28 @@ export function DirectionPanel({ stations, selected, block, nowMs }: Props) {
   const maxGaps = track.length - 1;
 
   const positioned = block.trains.map((train) => {
-    const gaps = virtualGaps(train, nowMs);
+    // 이산 배치: 역에 있으면 점, 구간에 있으면 화살표 흐름. 위치는 보간하지 않는다.
+    const placement = trainPlacement(train);
+    let pos: OnTrackTrain['pos'] | null = null;
+    if (placement?.kind === 'station') {
+      const left = leftPercentFromGaps(maxGaps, placement.gap);
+      if (left !== null) pos = { kind: 'station', left };
+    } else if (placement?.kind === 'segment') {
+      const seg = segmentPercents(maxGaps, placement.fromGap, placement.toGap);
+      if (seg) pos = { kind: 'segment', ...seg };
+    }
     return {
       train,
-      gaps,
+      pos,
+      passed: placement === null && train.stationsAway === 0,
       remaining: liveRemainingSeconds(train, nowMs),
-      left: gaps === null ? null : leftPercentFromGaps(maxGaps, gaps),
       delayed: stallSeconds(train, nowMs) > DELAY_NOTICE_SECONDS,
     };
   });
 
-  const onTrack = positioned.filter((p) => p.left !== null) as {
-    train: Train;
-    remaining: number | null;
-    left: number;
-    delayed: boolean;
-  }[];
+  const onTrack = positioned.filter((p): p is typeof p & { pos: OnTrackTrain['pos'] } => p.pos !== null);
   // 트랙보다 먼 열차(지나간 열차는 제외) 중 가장 가까운 것 — "다음 열차"로 안내한다.
-  const nextOffTrack = positioned.find((p) => p.left === null && (p.gaps ?? 1) > 0);
+  const nextOffTrack = positioned.find((p) => p.pos === null && !p.passed);
 
   return (
     <section className="direction-panel">

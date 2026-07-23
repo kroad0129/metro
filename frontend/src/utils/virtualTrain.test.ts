@@ -4,7 +4,7 @@ import {
   leftPercentFromGaps,
   liveRemainingSeconds,
   nextStationSeconds,
-  virtualGaps,
+  stallSeconds,
 } from './virtualTrain';
 
 const recptnAt = '2026-07-23T13:57:02+09:00';
@@ -72,6 +72,12 @@ describe('liveRemainingSeconds', () => {
     expect(liveRemainingSeconds(train({ segmentStartedAtMs: undefined }), t0 + 60_000)).toBe(345);
   });
 
+  it('학습된 floorSeconds가 있으면 균등 분배 대신 그걸 쓴다', () => {
+    // 균등이면 floor=230이지만 학습값 225를 쓰면 실제 구간 소요와 맞는다
+    const learned = train({ floorSeconds: 225 });
+    expect(liveRemainingSeconds(learned, t0 + 999_000)).toBe(225);
+  });
+
   it('recptnAt이 갱신돼도 남은 시간이 도로 늘어나지 않는다 (회귀 방지)', () => {
     // 서울시는 recptnDt를 10~27초마다 갱신하지만 barvlDt는 구간 내내 그대로다.
     // 기준을 recptnAt으로 잡으면 갱신될 때마다 카운트다운이 리셋된다.
@@ -84,78 +90,18 @@ describe('liveRemainingSeconds', () => {
   });
 });
 
-describe('virtualGaps', () => {
-  it('관측 직후에는 보고된 정거장 수 그대로다', () => {
-    expect(virtualGaps(train(), t0)).toBe(3);
+describe('stallSeconds', () => {
+  it('추정 소요를 넘겨 같은 구간에 머물면 초과분이 지연이다', () => {
+    // 345→230 구간(span 115초)을 다 썼고 30초 더 지났다
+    expect(stallSeconds(train(), t0 + 145_000)).toBeCloseTo(30);
+    expect(stallSeconds(train(), t0 + 60_000)).toBe(0); // 아직 예산 안
   });
 
-  it('시간이 흐르면 한 정거장 안에서 전진한다', () => {
-    // 345 → 230 구간(115초)의 절반이 지나면 0.5정거장 전진
-    expect(virtualGaps(train(), t0 + 57_500)).toBeCloseTo(2.5);
-  });
-
-  it('다음 역 직전에서 멈춘다 — 확인 전엔 넘어가지 않는다', () => {
-    expect(virtualGaps(train(), t0 + 999_000)).toBeCloseTo(2);
-  });
-
-  it('마지막 한 정거장은 역에 붙지 않고 코앞에서 멈춘다 — 거짓 도착 방지', () => {
-    const 전역 = train({ remainingSeconds: 95, stationsAway: 1 });
-    const gaps = virtualGaps(전역, t0 + 999_000);
-    expect(gaps).toBeCloseTo(0.08);
-    expect(gaps).toBeGreaterThan(0); // 아직 도착 아님
-  });
-
-  it('정차(ARRIVED) 중이면 시간이 흘러도 그 역에 서 있다', () => {
-    const 정차 = train({ status: 'ARRIVED' });
-    expect(virtualGaps(정차, t0 + 999_000)).toBe(3);
-  });
-
-  it('전역 진입(APPROACHING, d>0) 중에도 그 역에 붙는다 — 도착 직전 미세 이동은 그리지 않는다', () => {
-    const 진입 = train({ status: 'APPROACHING', stationsAway: 1, remainingSeconds: 95 });
-    expect(virtualGaps(진입, t0 + 60_000)).toBe(1);
-  });
-
-  it('출발이 관측되면 그 순간의 남은 시간부터 이동한다 — 정차 중 소모된 진행률로 점이 뛰지 않는다', () => {
-    // 전역(d=1) barvlDt 95. 30초 정차 후 출발 관측: moveStart 시점 live = 65.
-    const 출발 = train({
-      status: 'DEPARTED',
-      stationsAway: 1,
-      remainingSeconds: 95,
-      moveStartMs: t0 + 30_000,
-      moveStartRemainingSeconds: 65,
-      floorSeconds: 19,
-    });
-    // 출발 관측 직후: live=65 = moveStart값 → 진행률 0 → 아직 역(gap 1)에 있다
-    expect(virtualGaps(출발, t0 + 30_000)).toBe(1);
-    // 이후 절반(65→42) 지나면 절반쯤 전진
-    const mid = virtualGaps(출발, t0 + 53_000);
-    expect(mid).toBeLessThan(1);
-    expect(mid).toBeGreaterThan(0.08);
-  });
-
-  it('내 역 진입(d=0)은 코앞에서 문 앞으로 짧게 다가간다', () => {
-    const 진입 = train({ status: 'APPROACHING', stationsAway: 0, remainingSeconds: 20, floorSeconds: 0 });
-    const at0 = virtualGaps(진입, t0);
-    const at15 = virtualGaps(진입, t0 + 15_000);
-    expect(at0).toBeCloseTo(0.08);
-    expect(at15).toBeLessThan(at0!);
-    expect(at15).toBeGreaterThanOrEqual(0.02);
-  });
-
-  it('내 역을 출발(d=0, DEPARTED)한 열차는 음수 — 그리지 않는다', () => {
-    const 통과 = train({ status: 'DEPARTED', stationsAway: 0 });
-    expect(virtualGaps(통과, t0)).toBe(-1);
-    expect(leftPercentFromGaps(2, -1)).toBeNull();
-  });
-
-  it('학습된 floorSeconds가 있으면 균등 분배 대신 그걸 쓴다', () => {
-    // 균등이면 floor=230이지만 학습값 225를 쓰면 span이 실제 구간과 맞는다
-    const learned = train({ floorSeconds: 225 });
-    expect(liveRemainingSeconds(learned, t0 + 999_000)).toBe(225);
-  });
-
-  it('거리를 모르면 null이다 — 그리지 않는다', () => {
-    expect(virtualGaps(train({ stationsAway: null }), t0)).toBeNull();
+  it('역에 서 있는 상태(도착·진입)는 지연이 아니다 — 배치 모델과 같은 기준', () => {
+    expect(stallSeconds(train({ status: 'ARRIVED' }), t0 + 999_000)).toBe(0);
+    expect(stallSeconds(train({ status: 'APPROACHING', stationsAway: 1 }), t0 + 999_000)).toBe(0);
+    // 내 역 진입(d=0)도 화면에서는 역 위의 점 — 지연을 붙이지 않는다 (재생 검증에서 잡은 결함)
+    expect(stallSeconds(train({ status: 'APPROACHING', stationsAway: 0 }), t0 + 999_000)).toBe(0);
   });
 });
 

@@ -1,20 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import type { DirectionId, Train, TrainsResponse, TrainStatus } from '../types/subway';
-import { liveRemainingSeconds, stallSeconds, virtualGaps } from './virtualTrain';
+import { DELAY_NOTICE_SECONDS, liveRemainingSeconds, stallSeconds } from './virtualTrain';
+import { trainPlacement, type Placement } from './placement';
 import { trackSegments, type AnchorMap } from './segmentTracker';
 import type { PaceTable } from './paceTable';
 import polls from './__fixtures__/replay-jeungmi.json';
 
 /**
  * 재생(replay) 검증 — 실제 서울시 API를 10초 간격으로 6분간 녹화한 원본 응답을
- * 실제 모듈(trackSegments → virtualGaps/liveRemainingSeconds)에 그대로 통과시키고,
- * 1초 단위로 화면이 보게 될 값을 샘플링해 "멈춤·튐"이 없는지 기계적으로 확인한다.
+ * 실제 모듈(trackSegments → trainPlacement/liveRemainingSeconds)에 그대로 통과시키고,
+ * 1초 단위로 화면이 보게 될 값을 샘플링해 약속이 지켜지는지 기계적으로 확인한다.
  *
- * 지키는 약속:
+ * 지키는 약속 (이산 배치 모델):
  * 1) 남은 시간은 절대 늘어나지 않는다 (폴링이 와도).
- * 2) 점은 절대 뒤로 가지 않는다.
- * 3) 폴링 순간의 하향 점프는 작다 (모델과 실제의 어긋남 한도).
- * 4) 달리는 열차가 멈춰 보이는 구간(둘 다 정지)은 짧다.
+ * 2) 배치는 절대 뒤로 가지 않는다 (구간을 달리다 지나온 역으로 돌아가지 않는다).
+ * 3) 폴링 순간의 남은 시간 하향 점프는 작다 (모델과 실제의 어긋남 한도).
+ * 4) 역에 서 있는 열차(정차·진입)는 지연으로 표시되지 않는다 — 정차는 정상이다.
+ * 5) 실제 지연(운영사 추정 초과)은 감지된다 — 오래 흐르는 화살표가 정보가 된다.
  */
 
 type RawTrain = {
@@ -86,14 +88,14 @@ function toResponse(poll: Poll): TrainsResponse {
   };
 }
 
-type Sample = { atMs: number; live: number; gaps: number; status: TrainStatus; stall: number; seam: boolean };
-type Boundary = {
-  beforeLive: number;
-  afterLive: number;
-  beforeGaps: number;
-  afterGaps: number;
-  firstTransition: boolean;
-};
+/** 배치를 "선택역까지 얼마나 남았나" 축의 숫자로 — 작아질수록 전진. 역=d, 구간=d−0.5. */
+function placementOrder(placement: Placement): number | null {
+  if (placement === null) return null;
+  return placement.kind === 'station' ? placement.gap : placement.fromGap - 0.5;
+}
+
+type Sample = { atMs: number; live: number; order: number; parked: boolean; stall: number; seam: boolean };
+type Boundary = { beforeLive: number; afterLive: number; firstTransition: boolean };
 
 describe('실녹화 재생 검증 (증미, 6분·폴링 36회)', () => {
   // 전체 재생을 한 번 수행해 열차별 1초 샘플을 모은다.
@@ -110,23 +112,13 @@ describe('실녹화 재생 검증 (증미, 6분·폴링 36회)', () => {
   for (let i = 0; i < typedPolls.length; i += 1) {
     const nowMs = typedPolls[i].t * 1000;
 
-    // 폴링 직전 마지막 샘플(경계 점프 측정용)
-    const lastBefore = new Map<string, Sample>();
+    // 폴링 직전 마지막 값(경계 점프 측정용)
+    const lastBefore = new Map<string, number>();
     if (annotated) {
       for (const dir of annotated.directions) {
         for (const train of dir.trains) {
-          const gaps = virtualGaps(train, nowMs);
           const live = liveRemainingSeconds(train, nowMs);
-          if (gaps !== null && live !== null) {
-            lastBefore.set(train.trainId, {
-              atMs: nowMs,
-              live,
-              gaps,
-              status: train.status,
-              stall: stallSeconds(train, nowMs),
-              seam: true,
-            });
-          }
+          if (live !== null) lastBefore.set(train.trainId, live);
         }
       }
     }
@@ -138,8 +130,7 @@ describe('실녹화 재생 검증 (증미, 6분·폴링 36회)', () => {
     // 경계 점프 기록 (+ 열차별 첫 구간 전이 여부)
     for (const dir of annotated.directions) {
       for (const train of dir.trains) {
-        const before = lastBefore.get(train.trainId);
-        const gaps = virtualGaps(train, nowMs);
+        const beforeLive = lastBefore.get(train.trainId);
         const live = liveRemainingSeconds(train, nowMs);
 
         const prevD = lastStationsAway.get(train.trainId);
@@ -148,15 +139,9 @@ describe('실녹화 재생 검증 (증미, 6분·폴링 36회)', () => {
         if (transitioned) seenTransition.add(train.trainId);
         lastStationsAway.set(train.trainId, train.stationsAway);
 
-        if (before && gaps !== null && live !== null) {
+        if (beforeLive !== undefined && live !== null) {
           const list = pollBoundaries.get(train.trainId) ?? [];
-          list.push({
-            beforeLive: before.live,
-            afterLive: live,
-            beforeGaps: before.gaps,
-            afterGaps: gaps,
-            firstTransition,
-          });
+          list.push({ beforeLive, afterLive: live, firstTransition });
           pollBoundaries.set(train.trainId, list);
         }
       }
@@ -167,15 +152,16 @@ describe('실녹화 재생 검증 (증미, 6분·폴링 36회)', () => {
     for (let atMs = nowMs; atMs < endMs; atMs += 1000) {
       for (const dir of annotated.directions) {
         for (const train of dir.trains) {
-          const gaps = virtualGaps(train, atMs);
+          const placement = trainPlacement(train);
+          const order = placementOrder(placement);
           const live = liveRemainingSeconds(train, atMs);
-          if (gaps === null || live === null) continue;
+          if (order === null || live === null) continue;
           const list = byTrain.get(train.trainId) ?? [];
           list.push({
             atMs,
             live,
-            gaps,
-            status: train.status,
+            order,
+            parked: placement!.kind === 'station',
             stall: stallSeconds(train, atMs),
             seam: atMs === nowMs, // 폴링 직후 첫 샘플 — 구간 전이 이음새일 수 있다
           });
@@ -202,16 +188,19 @@ describe('실녹화 재생 검증 (증미, 6분·폴링 36회)', () => {
     }
   });
 
-  it('점은 절대 뒤로 가지 않는다', () => {
+  it('배치는 절대 뒤로 가지 않는다 — 달리던 구간에서 지나온 역으로 돌아가지 않는다', () => {
     for (const [trainId, samples] of byTrain) {
       for (let i = 1; i < samples.length; i += 1) {
-        const backward = samples[i].gaps - samples[i - 1].gaps;
-        expect(backward, `${trainId} @${samples[i].atMs}: gaps ${samples[i - 1].gaps}→${samples[i].gaps}`).toBeLessThanOrEqual(1e-6);
+        const backward = samples[i].order - samples[i - 1].order;
+        expect(
+          backward,
+          `${trainId} @${samples[i].atMs}: 배치 ${samples[i - 1].order}→${samples[i].order}`,
+        ).toBeLessThanOrEqual(1e-9);
       }
     }
   });
 
-  it('폴링 순간의 하향 점프가 작다 — 첫 전이(위치 미상 보정)만 크게 허용', () => {
+  it('폴링 순간의 남은 시간 하향 점프가 작다 — 첫 전이(위치 미상 보정)만 크게 허용', () => {
     // 처음 본 열차는 구간 어디쯤인지 몰라 "절반" 가정을 쓴다. 실제 위치가 구간 끝자락이었다면
     // 첫 전이에서 최대 반 구간(~65초)의 보정이 온다 — 앱 시작 직후 열차당 1회뿐이다.
     // 그 뒤로는 폴링 간격 + 서울시 데이터 지연(~10+27초) 안쪽이어야 한다.
@@ -226,27 +215,21 @@ describe('실녹화 재생 검증 (증미, 6분·폴링 36회)', () => {
     }
   });
 
-  it('오래 멈춘 달리는 열차는 반드시 "지연"으로 감지된다 — 멈춤이 정보가 된다', () => {
-    // 실제 지연(예: 당산→선유도 추정 125초, 실측 191초)은 어떤 모델도 없앨 수 없다 —
-    // 점을 세우는 게 정직하다. 대신 그 멈춤을 stallSeconds가 감지해 UI가 "지연"을 달 수
-    // 있어야 하고, 물리적으로 말이 안 되는 길이(4분+)는 모델 결함으로 본다.
+  it('역에 서 있는 열차(정차·진입)는 지연으로 표시되지 않는다 — 정차는 정상이다', () => {
     for (const [trainId, samples] of byTrain) {
-      let stall = 0;
-      let worst = 0;
-      for (let i = 1; i < samples.length; i += 1) {
-        const moving = samples[i].status === 'TRAVELING' || samples[i].status === 'DEPARTED';
-        const frozen = Math.abs(samples[i].gaps - samples[i - 1].gaps) < 1e-9;
-        if (moving && frozen) {
-          stall += (samples[i].atMs - samples[i - 1].atMs) / 1000;
-          worst = Math.max(worst, stall);
-          if (stall > 25 && !samples[i].seam) {
-            expect(samples[i].stall, `${trainId} @${samples[i].atMs}: ${stall}초째 멈췄는데 지연 미감지`).toBeGreaterThan(0);
-          }
-        } else {
-          stall = 0;
+      for (const s of samples) {
+        if (s.parked) {
+          expect(s.stall, `${trainId} @${s.atMs}: 정차 중인데 지연 감지`).toBe(0);
         }
       }
-      expect(worst, `${trainId} 최장 멈춤 ${worst}초`).toBeLessThanOrEqual(240);
     }
+  });
+
+  it('실제 지연은 감지된다 — 9129의 당산→선유도 지연(추정 125초, 실측 191초)', () => {
+    // 어떤 모델도 실제 지연을 없앨 수는 없다. 대신 오래 흐르는 화살표에 "지연"이 붙어
+    // 멈춘 것처럼 보이는 시간이 정보가 되는지를 확인한다.
+    const samples = byTrain.get('9129') ?? [];
+    const worstStall = Math.max(...samples.map((s) => s.stall), 0);
+    expect(worstStall).toBeGreaterThan(DELAY_NOTICE_SECONDS);
   });
 });
