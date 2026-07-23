@@ -1,85 +1,105 @@
 import { describe, expect, it } from 'vitest';
+import type { Train, TrainStatus } from '../types/subway';
 import {
   leftPercentFromGaps,
-  phaseSegment,
-  SECONDS_PER_GAP,
+  liveRemainingSeconds,
+  nextStationSeconds,
   virtualGaps,
-  virtualRemainingSeconds,
 } from './virtualTrain';
 
-const t0 = 1_000_000;
+const recptnAt = '2026-07-23T13:57:02+09:00';
+const t0 = Date.parse(recptnAt);
 
-describe('phaseSegment', () => {
-  it('정차는 움직이지 않는다 — 출발 확인 전 자동 출발 금지', () => {
-    expect(phaseSegment('ARRIVED', 1)).toEqual({ startGaps: 1, capGaps: 1, durationSeconds: 0 });
+function train(over: Partial<Train> = {}): Train {
+  return {
+    trainId: '9109',
+    trainType: 'LOCAL',
+    currentStation: { stationId: '1009000911', name: '신목동', order: 11, isExpressStop: false },
+    remainingSeconds: 345,
+    status: 'TRAVELING' as TrainStatus,
+    positionRatio: 0.5,
+    stationsAway: 3,
+    recptnAt,
+    ...over,
+  };
+}
+
+describe('nextStationSeconds', () => {
+  it('거리에 비례해 줄어든 값을 준다 — 실측과 맞는다', () => {
+    // 실측: 7정거장 885초 → 6정거장에서 760초. 추정 758초.
+    expect(nextStationSeconds(885, 7)).toBeCloseTo(758.6, 0);
+    // 실측: 4정거장 485초 → 3정거장에서 345초. 추정 364초.
+    expect(nextStationSeconds(485, 4)).toBeCloseTo(363.75, 1);
   });
 
-  it('출발은 그 역 직후에서 다음 역 직전까지 간다', () => {
-    const seg = phaseSegment('DEPARTED', 1);
-    expect(seg.startGaps).toBeCloseTo(0.9);
-    expect(seg.capGaps).toBeCloseTo(0.15);
+  it('마지막 한 정거장은 0이 아니라 "내 역 진입" 값으로 둔다', () => {
+    // 전역 95초 → 진입 시점 추정 19초(실측 20초)
+    expect(nextStationSeconds(95, 1)).toBeCloseTo(19);
   });
 
-  it('진입은 역 코앞까지 짧게 간다', () => {
-    const seg = phaseSegment('APPROACHING', 0);
-    expect(seg.startGaps).toBeCloseTo(0.1);
-    expect(seg.capGaps).toBeCloseTo(0.02);
+  it('이미 도착했으면 0이다', () => {
+    expect(nextStationSeconds(95, 0)).toBe(0);
+  });
+});
+
+describe('liveRemainingSeconds', () => {
+  it('recptnAt 이후 흐른 만큼 뺀다 — 벤더 지침', () => {
+    expect(liveRemainingSeconds(train(), t0)).toBe(345);
+    expect(liveRemainingSeconds(train(), t0 + 60_000)).toBe(285);
   });
 
-  it('운행은 그 역에서 다음 역 직전까지 간다', () => {
-    const seg = phaseSegment('TRAVELING', 2);
-    expect(seg.startGaps).toBe(2);
-    expect(seg.capGaps).toBeCloseTo(1.15);
+  it('다음 역 예상치 밑으로는 내려가지 않는다 — 지연이어도 거짓 도착 없음', () => {
+    const floor = nextStationSeconds(345, 3); // 230
+    expect(liveRemainingSeconds(train(), t0 + 100_000)).toBeCloseTo(245);
+    expect(liveRemainingSeconds(train(), t0 + 999_000)).toBeCloseTo(floor);
   });
 
-  it('모든 위상의 페이스는 대략 한 정거장/110초로 균일하다 — 위상이 바뀌어도 속도가 튀지 않는다', () => {
-    for (const status of ['DEPARTED', 'TRAVELING'] as const) {
-      const seg = phaseSegment(status, 1);
-      const pace = seg.durationSeconds / Math.abs(seg.startGaps - seg.capGaps);
-      expect(pace).toBeGreaterThan(90);
-      expect(pace).toBeLessThan(125);
-    }
+  it('전역에서 오래 지연돼도 0으로 떨어지지 않는다', () => {
+    const 전역 = train({ remainingSeconds: 95, stationsAway: 1 });
+    expect(liveRemainingSeconds(전역, t0 + 999_000)).toBeCloseTo(19);
+  });
+
+  it('시계 오차로 now가 더 이르면 경과를 0으로 본다', () => {
+    expect(liveRemainingSeconds(train(), t0 - 30_000)).toBe(345);
+  });
+
+  it('남은 시간을 모르면 null이다', () => {
+    expect(liveRemainingSeconds(train({ remainingSeconds: null }), t0)).toBeNull();
+  });
+
+  it('recptnAt이 없으면 보정 없이 원값을 쓴다', () => {
+    expect(liveRemainingSeconds(train({ recptnAt: null }), t0 + 60_000)).toBe(345);
   });
 });
 
 describe('virtualGaps', () => {
-  it('위상 시작 직후에는 시작점이다', () => {
-    expect(virtualGaps('TRAVELING', 2, t0, t0)).toBe(2);
+  it('관측 직후에는 보고된 정거장 수 그대로다', () => {
+    expect(virtualGaps(train(), t0)).toBe(3);
   });
 
-  it('시간이 흐르면 선택역 쪽으로 전진한다', () => {
-    const half = virtualGaps('TRAVELING', 2, t0, t0 + 47_000); // 94초의 절반
-    expect(half).toBeCloseTo(2 - 0.85 / 2, 5);
+  it('시간이 흐르면 한 정거장 안에서 전진한다', () => {
+    // 345 → 230 구간(115초)의 절반이 지나면 0.5정거장 전진
+    expect(virtualGaps(train(), t0 + 57_500)).toBeCloseTo(2.5);
   });
 
-  it('시간이 다 지나도 상한(cap)을 넘지 않는다 — 확인 전 다음 역에 못 간다', () => {
-    expect(virtualGaps('TRAVELING', 2, t0, t0 + 500_000)).toBeCloseTo(1.15);
-    expect(virtualGaps('DEPARTED', 1, t0, t0 + 500_000)).toBeCloseTo(0.15);
+  it('다음 역 직전에서 멈춘다 — 확인 전엔 넘어가지 않는다', () => {
+    expect(virtualGaps(train(), t0 + 999_000)).toBeCloseTo(2);
   });
 
-  it('정차는 아무리 지나도 그 자리다', () => {
-    expect(virtualGaps('ARRIVED', 1, t0, t0 + 500_000)).toBe(1);
+  it('마지막 한 정거장은 역에 붙지 않고 코앞에서 멈춘다 — 거짓 도착 방지', () => {
+    const 전역 = train({ remainingSeconds: 95, stationsAway: 1 });
+    const gaps = virtualGaps(전역, t0 + 999_000);
+    expect(gaps).toBeCloseTo(0.08);
+    expect(gaps).toBeGreaterThan(0); // 아직 도착 아님
   });
 
-  it('앵커가 없으면(처음 본 열차) 위상 시작점에 둔다', () => {
-    expect(virtualGaps('TRAVELING', 2, undefined, t0 + 500_000)).toBe(2);
-  });
-});
-
-describe('virtualRemainingSeconds', () => {
-  it('남은 정거장 수에 페이스를 곱한다', () => {
-    expect(virtualRemainingSeconds(2)).toBe(2 * SECONDS_PER_GAP);
-    expect(virtualRemainingSeconds(1)).toBe(SECONDS_PER_GAP);
+  it('정차(ARRIVED) 중이면 시간이 흘러도 그 역에 서 있다', () => {
+    const 정차 = train({ status: 'ARRIVED' });
+    expect(virtualGaps(정차, t0 + 999_000)).toBe(3);
   });
 
-  it('0 밑으로 내려가지 않는다', () => {
-    expect(virtualRemainingSeconds(-0.1)).toBe(0);
-  });
-
-  it('전역(1정거장)은 약 2분으로 — 운영사 추정(95초)과 같은 자리다', () => {
-    const seconds = virtualRemainingSeconds(1);
-    expect(seconds).toBeGreaterThan(60);
-    expect(seconds).toBeLessThan(180);
+  it('거리를 모르면 null이다 — 그리지 않는다', () => {
+    expect(virtualGaps(train({ stationsAway: null }), t0)).toBeNull();
   });
 });
 

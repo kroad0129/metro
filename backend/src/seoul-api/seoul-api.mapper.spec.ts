@@ -1,4 +1,4 @@
-import { mapArrivalResponse } from './seoul-api.mapper';
+import { mapArrivalResponse, toRecptnAtIso, toStationsAway } from './seoul-api.mapper';
 import { SeoulArrivalResponse } from './seoul-api.types';
 import jeungmi from '../../test/fixtures/station-arrival.success.json';
 import gayang from '../../test/fixtures/station-arrival.express.json';
@@ -408,5 +408,42 @@ describe('mapArrivalResponse', () => {
       };
       expect(mapArrivalResponse(raw, LINE9)).toHaveLength(1);
     });
+  });
+});
+
+describe('toStationsAway', () => {
+  it('ordkey 3~5번째 자리에서 남은 정거장 수를 꺼낸다', () => {
+    // 상하행(1) + 순번(1) + 거리(3) + 목적지 + 급행여부(1)
+    expect(toStationsAway('01003개화0')).toBe(3);
+    expect(toStationsAway('02007개화0')).toBe(7);
+    expect(toStationsAway('11002중앙보훈병원0')).toBe(2);
+  });
+
+  it('형식이 어긋나면 null이다 — 호출부가 역명으로 대체한다', () => {
+    expect(toStationsAway(undefined)).toBeNull();
+    expect(toStationsAway('')).toBeNull();
+    expect(toStationsAway('0100')).toBeNull();
+    expect(toStationsAway('01abc개화0')).toBeNull();
+    expect(toStationsAway(12345)).toBeNull();
+  });
+});
+
+describe('toRecptnAtIso', () => {
+  it('서울시 시각을 KST 기준 ISO로 바꾼다', () => {
+    expect(toRecptnAtIso('2026-07-23 13:57:02')).toBe('2026-07-23T13:57:02+09:00');
+  });
+
+  it('파싱 불가하면 null이다', () => {
+    expect(toRecptnAtIso(undefined)).toBeNull();
+    expect(toRecptnAtIso('어제')).toBeNull();
+    expect(toRecptnAtIso('2026-07-23')).toBeNull();
+  });
+});
+
+describe('실제 응답에서 ordkey·recptnDt를 함께 매핑한다', () => {
+  it('증미 응답의 첫 열차는 3정거장 거리와 생성 시각을 갖는다', () => {
+    const [first] = mapArrivalResponse(jeungmi as SeoulArrivalResponse, LINE9);
+    expect(first.stationsAway).toBe(3);
+    expect(first.recptnAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+09:00$/);
   });
 });

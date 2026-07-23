@@ -53,6 +53,33 @@ function toRemainingSeconds(barvlDt: unknown): number | null {
   return seconds;
 }
 
+/**
+ * ordkey에서 "조회한 역까지 몇 정거장 남았는지"를 꺼낸다.
+ * 벤더 명세상 구조: 상하행(1자리) + 순번(1자리) + 거리(3자리) + 목적지 + 급행여부(1자리).
+ * 예: "01003개화0" → 3정거장. 역명 매칭으로 거리를 유추하는 것보다 정확하고 견고하다.
+ * 형식이 어긋나면 null — 호출부가 역명 기반으로 대체한다.
+ */
+export function toStationsAway(ordkey: unknown): number | null {
+  const value = asString(ordkey);
+  if (!value || value.length < 5) return null;
+  const digits = value.slice(2, 5);
+  if (!/^\d{3}$/.test(digits)) return null;
+  return Number(digits);
+}
+
+/**
+ * recptnDt("2026-07-23 13:57:02")를 ISO 문자열로. 서울시 값이므로 KST(+09:00)로 해석한다.
+ * barvlDt는 "이 시각 기준" 추정치라, 이후 흐른 만큼 빼서 써야 한다(벤더 명세의 명시적 지침).
+ */
+export function toRecptnAtIso(recptnDt: unknown): string | null {
+  const value = asString(recptnDt)?.trim();
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return null;
+  const iso = `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}+09:00`;
+  return Number.isFinite(new Date(iso).getTime()) ? iso : null;
+}
+
 function mapItem(
   item: unknown,
   index: number,
@@ -79,6 +106,8 @@ function mapItem(
     remainingSeconds: toRemainingSeconds(item.barvlDt),
     status: STATUS_BY_ARVL_CD[arvlCd] ?? 'TRAVELING',
     directionId,
+    stationsAway: toStationsAway(item.ordkey),
+    recptnAt: toRecptnAtIso(item.recptnDt),
   };
 }
 

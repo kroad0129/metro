@@ -1,81 +1,93 @@
-import type { TrainStatus } from '../types/subway';
+import type { Train } from '../types/subway';
 
 /**
- * 가상 열차 모델 — 폴링 스냅샷 사이를 실제 지하철 운행 리듬으로 채운다.
+ * 가상 열차 모델 — 폴링 스냅샷 사이를 실제 운행처럼 채운다.
  *
- * 원리(실측 근거는 스펙 2026-07-23-time-model-from-measurement.md):
- * - 운영사 추정치(barvlDt)의 위상 간격이 곧 페이스다: 전전역 220초 → 전역 95초 → 진입 20초.
- *   즉 한 정거장 ≈ 110초, 출발→진입 ≈ 75초, 진입→도착 ≈ 15~20초.
- * - 위상(현재역+상태)이 바뀐 시각(anchor)부터 이 페이스로 가상 위치를 전진시킨다.
- * - 단, API가 다음 위상을 확인해주기 전에는 구간 끝 직전(cap)에서 멈춰 기다린다 —
- *   전광판이 다음 폐색 확인 전까지 구간 안에서만 열차를 움직이는 것과 같다.
- *   그래서 거짓 도착이 없고, 지연(위상이 길어짐)은 "역 앞 대기"로 자연스럽게 보인다.
- * - 정차(ARRIVED)는 절대 자동 출발하지 않는다. 출발 확인이 와야 움직인다.
+ * 실측으로 확인한 API의 성질(스펙 2026-07-23-time-model-from-measurement.md):
+ * - `barvlDt`는 실시간 카운트다운이 아니라 "역 단위 조회표"다. 데이터가 10~27초마다
+ *   재생성(recptnDt 갱신)돼도 같은 역에 있는 동안 값이 그대로다(3정거장이면 계속 345초).
+ * - 하지만 벤더 명세는 명시한다: **barvlDt는 recptnDt 시점의 값이니, 그 이후 흐른 만큼
+ *   빼서 써야 한다.** 그래서 카운트다운의 기준점은 "우리가 받은 시각"이 아니라 recptnDt다.
+ * - `ordkey`가 남은 정거장 수를 정수로 준다(예 "01003개화0" → 3). 역명 매칭보다 정확하다.
  *
- * 위치 단위는 "선택역까지 남은 정거장 수(gaps)". 0 = 선택역 도착, 1 = 전역, 음수 = 지나감.
+ * 그래서 페이스를 상수로 박지 않고 **그 열차의 barvlDt에서 직접 얻는다**. 열차·구간마다
+ * 다른 실제 소요(실측 125~187초/정거장)가 자동 반영된다.
  */
-
-/** 한 정거장 소요(초). 운영사 barvlDt 간격(220→95→20)에서 유도. 남은 시간 = gaps × 이 값. */
-export const SECONDS_PER_GAP = 110;
-
-type Segment = {
-  /** 위상 시작 시점의 가상 위치(gaps). */
-  startGaps: number;
-  /** 다음 위상 확인 전까지 넘지 않는 상한(gaps, 작을수록 선택역에 가까움). */
-  capGaps: number;
-  /** start→cap 이동에 걸리는 시간(초). 0이면 움직이지 않는다(정차). */
-  durationSeconds: number;
-};
 
 /**
- * 위상별 이동 구간. d = 현재역이 선택역에서 몇 정거장 전인지(order 차이).
- * 페이스는 전부 ≈1정거장/110초로 통일돼 있어 위상이 바뀌어도 속도가 튀지 않는다.
+ * 다음 역에 닿았을 때 API가 보고할 barvlDt 추정치.
+ * 거리에 비례해 줄어든다고 보면 실측과 잘 맞는다(885초/7정거장 → 6정거장에서 760초, 추정 758초).
+ * 마지막 한 정거장(d=1)은 0이 아니라 "내 역 진입" 시점 값(실측 ≈ barvlDt의 20%)으로 둔다 —
+ * 그래야 전역에서 지연될 때 카운트다운이 0까지 내려가 거짓 도착이 되지 않는다.
  */
-export function phaseSegment(status: TrainStatus, d: number): Segment {
-  switch (status) {
-    case 'ARRIVED': // 그 역에 정차 — 출발 확인 전까지 그대로 선다
-      return { startGaps: d, capGaps: d, durationSeconds: 0 };
-    case 'DEPARTED': // 그 역을 막 출발 — 다음 역 직전(0.15)까지 기어간다
-      return { startGaps: d - 0.1, capGaps: d - 0.85, durationSeconds: 75 };
-    case 'APPROACHING': // 그 역에 진입 중 — 역 코앞(0.02)까지 짧게
-      return { startGaps: d + 0.1, capGaps: d + 0.02, durationSeconds: 15 };
-    case 'TRAVELING': // 역 부근 운행(원거리는 정차 구분이 없어 정차 시간을 페이스에 녹인다)
-      return { startGaps: d, capGaps: d - 0.85, durationSeconds: 94 };
-  }
+export function nextStationSeconds(barvlDt: number, stationsAway: number): number {
+  if (stationsAway <= 0) return 0;
+  return (barvlDt * Math.max(stationsAway - 1, 0.2)) / stationsAway;
 }
 
 /**
- * 지금 이 순간의 가상 위치(gaps). anchorSinceMs = 이 위상을 처음 관측한 시각.
- * 앵커가 없으면(처음 본 열차) 위상 시작점에 둔다 — 실제보다 뒤에 있을 순 있어도 앞서진 않는다.
+ * 다음 위상에서 도달할 위치(남은 정거장 수) — 위치의 상한.
+ * 마지막 한 정거장은 0이 아니라 역 코앞에서 멈춘다. 내 역 진입이 확인되기 전에 점이 역에
+ * 붙어버리면 "24초 남았는데 이미 도착"처럼 보이기 때문이다. 진입이 확인되면 stationsAway가
+ * 0이 되어 그때 100%에 닿는다.
  */
-export function virtualGaps(
-  status: TrainStatus,
-  d: number,
-  anchorSinceMs: number | undefined,
-  nowMs: number,
-): number {
-  const seg = phaseSegment(status, d);
-  if (seg.durationSeconds <= 0 || anchorSinceMs === undefined) return seg.startGaps;
-
-  const elapsed = Math.max(0, (nowMs - anchorSinceMs) / 1000);
-  const progress = Math.min(1, elapsed / seg.durationSeconds);
-  return seg.startGaps + (seg.capGaps - seg.startGaps) * progress;
-}
-
-/** 가상 위치에서 남은 시간(초). 점과 시간이 같은 모델에서 나와 서로 모순되지 않는다. */
-export function virtualRemainingSeconds(gaps: number): number {
-  return Math.max(0, gaps * SECONDS_PER_GAP);
+export function nextStationGaps(stationsAway: number): number {
+  return Math.max(stationsAway - 1, 0.08);
 }
 
 /**
- * 가상 위치(gaps)를 트랙 left(%)로. 선택역이 오른쪽 끝(100%)이고 maxGaps 정거장 전이 0%다.
- * - 이미 지나간 열차(gaps < 0에 여유 포함)는 null — 그리지 않는다.
- * - 트랙보다 먼 열차도 null — "다음 열차 N분" 텍스트로 처리한다.
+ * 지금 이 순간의 남은 시간(초).
+ * recptnDt 이후 흐른 만큼 빼되(벤더 지침), 다음 역 확인 전에는 그 역 도착 예상치 밑으로
+ * 내려가지 않는다. 그래서 지연된 열차는 "역 앞에서 멈춘 카운트다운"으로 보이고,
+ * 절대 먼저 도착했다고 거짓말하지 않는다.
+ */
+export function liveRemainingSeconds(train: Train, nowMs: number): number | null {
+  const { remainingSeconds, stationsAway, recptnAt } = train;
+  if (remainingSeconds === null) return null;
+  if (stationsAway === null) return remainingSeconds;
+
+  const floor = nextStationSeconds(remainingSeconds, stationsAway);
+
+  const baseMs = recptnAt === null ? NaN : Date.parse(recptnAt);
+  if (!Number.isFinite(baseMs)) return remainingSeconds;
+
+  const elapsed = Math.max(0, (nowMs - baseMs) / 1000);
+  return Math.max(floor, remainingSeconds - elapsed);
+}
+
+/**
+ * 지금 이 순간의 가상 위치 — 선택역까지 남은 정거장 수(0 = 도착, 1 = 전역).
+ *
+ * 남은 시간이 barvlDt에서 다음 역 예상치까지 줄어드는 비율만큼 한 정거장을 전진한다.
+ * 정차(ARRIVED) 중에는 전진하지 않는다 — 서 있는 열차는 움직이지 않아야 하고,
+ * 급행 대기 지연이 "그 역에 서 있는 점"으로 그대로 보이게 하기 위해서다.
+ */
+export function virtualGaps(train: Train, nowMs: number): number | null {
+  const { remainingSeconds, stationsAway, status } = train;
+  if (stationsAway === null) return null;
+  if (status === 'ARRIVED') return stationsAway; // 정차 중 — 그 역에 그대로
+  if (remainingSeconds === null) return stationsAway;
+
+  const live = liveRemainingSeconds(train, nowMs);
+  if (live === null) return stationsAway;
+
+  const floor = nextStationSeconds(remainingSeconds, stationsAway);
+  const span = remainingSeconds - floor;
+  if (span <= 0) return stationsAway;
+
+  const progress = Math.min(1, Math.max(0, (remainingSeconds - live) / span));
+  const target = nextStationGaps(stationsAway);
+  return stationsAway - progress * (stationsAway - target);
+}
+
+/**
+ * 가상 위치(gaps)를 트랙 left(%)로. 선택역이 오른쪽 끝(100%), maxGaps 정거장 전이 0%.
+ * 지나갔거나(gaps < 0) 트랙보다 멀면 null — 호출부가 "다음 열차"로 처리한다.
  */
 export function leftPercentFromGaps(maxGaps: number, gaps: number): number | null {
-  if (gaps < -0.05) return null; // 선택역을 지나갔다
+  if (gaps < -0.05) return null;
   if (maxGaps <= 0) return 100;
-  if (gaps > maxGaps) return null; // 트랙 밖(멀다)
+  if (gaps > maxGaps) return null;
 
   const percent = (1 - gaps / maxGaps) * 100;
   return Math.min(100, Math.max(0, percent));

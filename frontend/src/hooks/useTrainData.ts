@@ -6,33 +6,10 @@ import type { TrainsResponse } from '../types/subway';
 export const REFRESH_COOLDOWN_MS = 3000;
 export const POLL_INTERVAL_MS = 15000;
 
-type PhaseAnchor = { phaseKey: string; sinceMs: number };
-
 /**
- * 각 열차의 위상(현재역+상태)이 언제 시작됐는지 기록해 anchorSinceMs로 붙인다.
- * 위상이 지난 폴링과 같으면 시작 시각을 유지하고, 바뀌었으면 지금으로 새로 잡는다.
- * 가상 열차 모델(virtualTrain)이 이 시각부터 위치를 전진시킨다.
+ * 카운트다운 기준 시각은 응답의 recptnAt(서울시가 그 값을 산출한 시각)이므로
+ * 클라이언트가 따로 앵커를 기록할 필요가 없다 — 폴링을 건너도 기준이 흔들리지 않는다.
  */
-function annotateAnchors(
-  response: TrainsResponse,
-  prev: Map<string, PhaseAnchor>,
-  nowMs: number,
-): { response: TrainsResponse; anchors: Map<string, PhaseAnchor> } {
-  const anchors = new Map<string, PhaseAnchor>();
-
-  const directions = response.directions.map((direction) => ({
-    ...direction,
-    trains: direction.trains.map((train) => {
-      const phaseKey = `${train.currentStation.stationId}:${train.status}`;
-      const old = prev.get(train.trainId);
-      const sinceMs = old && old.phaseKey === phaseKey ? old.sinceMs : nowMs;
-      anchors.set(train.trainId, { phaseKey, sinceMs });
-      return { ...train, anchorSinceMs: sinceMs };
-    }),
-  }));
-
-  return { response: { ...response, directions }, anchors };
-}
 
 /**
  * 열차 데이터 조회를 감싼다. 기본 조회 시점은 마운트·역 변경·refresh() 세 가지다.
@@ -50,8 +27,6 @@ export function useTrainData(stationId: string | null, pollMs: number | null = n
 
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestId = useRef(0);
-  // 열차별 위상 시작 시각 — 폴링을 건너 유지해야 가상 열차가 이어서 전진한다.
-  const anchors = useRef<Map<string, PhaseAnchor>>(new Map());
 
   const load = useCallback((id: string) => {
     const current = ++requestId.current;
@@ -59,10 +34,8 @@ export function useTrainData(stationId: string | null, pollMs: number | null = n
     setCanRefresh(false);
 
     getTrains(id)
-      .then((raw) => {
+      .then((response) => {
         if (current !== requestId.current) return; // 더 늦게 시작한 요청이 있으면 버린다
-        const { response, anchors: next } = annotateAnchors(raw, anchors.current, Date.now());
-        anchors.current = next;
         setData(response);
         setError(null);
       })
@@ -83,7 +56,6 @@ export function useTrainData(stationId: string | null, pollMs: number | null = n
 
   useEffect(() => {
     if (stationId === null) return;
-    anchors.current = new Map(); // 역이 바뀌면 이전 역 기준 앵커를 버린다
     load(stationId);
   }, [stationId, load]);
 

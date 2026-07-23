@@ -10,6 +10,8 @@ const train: Train = {
   remainingSeconds: 385,
   status: 'TRAVELING',
   positionRatio: 0.5,
+  stationsAway: 3,
+  recptnAt: '2026-07-23T13:57:02+09:00',
 };
 
 const 내역 = { stationId: '8', name: '증미', order: 8, isExpressStop: false };

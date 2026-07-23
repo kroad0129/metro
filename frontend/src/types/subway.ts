@@ -16,9 +16,10 @@ export type Train = {
   remainingSeconds: number | null;
   status: TrainStatus;
   positionRatio: number;
-  /** 이 위상(현재역+상태)을 처음 관측한 시각(ms). useTrainData가 폴링마다 채운다 —
-   *  가상 열차 모델(virtualTrain)이 여기서부터 위치를 전진시킨다. 백엔드 응답에는 없다. */
-  anchorSinceMs?: number;
+  /** 선택역까지 남은 정거장 수(ordkey에서 추출). 위치의 기준. */
+  stationsAway: number | null;
+  /** remainingSeconds가 산출된 시각(ISO). 여기서부터 카운트다운한다(벤더 지침). */
+  recptnAt: string | null;
 };
 
 export type DirectionBlock = {

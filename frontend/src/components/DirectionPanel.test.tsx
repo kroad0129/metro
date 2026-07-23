@@ -13,17 +13,19 @@ const stations: Station[] = Array.from({ length: 38 }, (_, i) => ({
 const 증미 = stations[7];
 const 염창 = stations[9];
 
-const now = 1_000_000;
+const recptnAt = '2026-07-23T13:57:02+09:00';
+const now = Date.parse(recptnAt);
 
 function train(over: Partial<Train> = {}): Train {
   return {
     trainId: 'T1',
     trainType: 'LOCAL',
-    currentStation: stations[8], // order 9 = 전역(d=1)
+    currentStation: stations[8], // order 9
     remainingSeconds: 120,
     status: 'TRAVELING',
     positionRatio: 0.5,
-    anchorSinceMs: now, // 위상 관측 직후 → 가상 위치 = 위상 시작점
+    stationsAway: 1, // 전역
+    recptnAt,
     ...over,
   };
 }
@@ -49,27 +51,28 @@ describe('DirectionPanel', () => {
     expect(screen.getByText('접근 중인 열차 없음')).toBeInTheDocument();
   });
 
-  it('트랙 안의 열차를 점으로 표시하고 가상 남은 시간을 붙인다', () => {
+  it('트랙 안의 열차를 점으로 표시하고 남은 시간을 붙인다', () => {
     render(<DirectionPanel stations={stations} selected={증미} block={block([train()])} nowMs={now} />);
     const marker = screen.getByTestId('train-marker');
     expect(marker).toBeInTheDocument();
-    expect(marker).toHaveTextContent('1분 50초'); // 1정거장 × 110초
+    expect(marker).toHaveTextContent('2분'); // barvlDt 120초
   });
 
-  it('열차 점의 위치는 가상 위치(위상 시작점)에서 시작한다', () => {
-    // 전역(d=1) 운행, 앵커 직후 → gaps 1 → (1 - 1/2) = 50%
+  it('점 위치는 보고된 정거장 수(ordkey)에서 시작한다', () => {
+    // 1정거장 남음, 트랙 간격 2개 → 50%
     render(<DirectionPanel stations={stations} selected={증미} block={block([train()])} nowMs={now} />);
     expect(screen.getByTestId('train-marker')).toHaveStyle({ left: '50%' });
   });
 
-  it('시간이 흐르면 가상 열차가 전진한다', () => {
-    // 운행 94초 중 47초 경과 → gaps 1 - 0.425 = 0.575 → left 71.25%
-    render(
-      <DirectionPanel stations={stations} selected={증미} block={block([train()])} nowMs={now + 47_000} />,
-    );
-    const left = parseFloat(screen.getByTestId('train-marker').style.left);
-    expect(left).toBeGreaterThan(70);
-    expect(left).toBeLessThan(73);
+  it('시간이 흐르면 열차가 전진하고 남은 시간도 줄어든다', () => {
+    // 120 → 24(=다음 위상 예상치) 구간의 절반이 지난 시점
+    const later = now + 48_000;
+    render(<DirectionPanel stations={stations} selected={증미} block={block([train()])} nowMs={later} />);
+    const marker = screen.getByTestId('train-marker');
+    const left = parseFloat(marker.style.left);
+    expect(left).toBeGreaterThan(50);
+    expect(left).toBeLessThan(100);
+    expect(marker).toHaveTextContent('1분 12초');
   });
 
   it('정차(ARRIVED) 중이면 시간이 흘러도 그 역에 서 있다', () => {
@@ -84,21 +87,30 @@ describe('DirectionPanel', () => {
     expect(screen.getByTestId('train-marker')).toHaveStyle({ left: '50%' });
   });
 
+  it('전역에서 오래 지연돼도 도착했다고 하지 않는다', () => {
+    render(
+      <DirectionPanel stations={stations} selected={증미} block={block([train()])} nowMs={now + 500_000} />,
+    );
+    const marker = screen.getByTestId('train-marker');
+    expect(parseFloat(marker.style.left)).toBeLessThan(100);
+    expect(marker).not.toHaveTextContent('곧 도착');
+  });
+
   it('트랙 밖의 열차는 점 대신 텍스트로 안내한다', () => {
-    const faraway = train({ currentStation: stations[20], remainingSeconds: 540 });
+    const faraway = train({ currentStation: stations[20], remainingSeconds: 540, stationsAway: 5 });
     render(<DirectionPanel stations={stations} selected={증미} block={block([faraway])} nowMs={now} />);
     expect(screen.queryByTestId('train-marker')).not.toBeInTheDocument();
     expect(screen.getByText('다음 열차 9분')).toBeInTheDocument();
   });
 
   it('트랙 밖 열차가 있으면 "접근 중인 열차 없음" 문구를 띄우지 않는다', () => {
-    const faraway = train({ currentStation: stations[20], remainingSeconds: 540 });
+    const faraway = train({ currentStation: stations[20], remainingSeconds: 540, stationsAway: 5 });
     render(<DirectionPanel stations={stations} selected={증미} block={block([faraway])} nowMs={now} />);
     expect(screen.queryByText('접근 중인 열차 없음')).not.toBeInTheDocument();
   });
 
   it('급행 정차역에서는 급행 뱃지를 붙인다', () => {
-    const express = train({ trainType: 'EXPRESS', currentStation: stations[11] });
+    const express = train({ trainType: 'EXPRESS', currentStation: stations[11], stationsAway: 2 });
     render(<DirectionPanel stations={stations} selected={염창} block={block([express])} nowMs={now} />);
     expect(screen.getByText('급행')).toBeInTheDocument();
   });

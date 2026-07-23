@@ -73,7 +73,7 @@ export class TrainsService {
       directionName: names[directionId],
       trains: raws
         .filter((raw) => raw.directionId === directionId)
-        .map((raw) => this.toTrain(lineId, raw))
+        .map((raw) => this.toTrain(lineId, raw, station))
         .filter((train): train is Train => train !== null)
         .sort(byArrivalSoonest),
     }));
@@ -87,7 +87,7 @@ export class TrainsService {
     };
   }
 
-  private toTrain(lineId: string, raw: RawTrain): Train | null {
+  private toTrain(lineId: string, raw: RawTrain, station: Station): Train | null {
     const current = this.lines.findStationByName(lineId, raw.currentStationName);
     if (!current) {
       // 역명 표기가 예상과 다르면 여기서 드러난다(스펙 2절 2번).
@@ -106,6 +106,9 @@ export class TrainsService {
       remainingSeconds: raw.remainingSeconds,
       status: raw.status,
       positionRatio: positionRatioOf(raw.status),
+      // ordkey가 없거나 형식이 어긋나면 역 순번 차이로 대체한다.
+      stationsAway: raw.stationsAway ?? Math.abs(station.order - current.order),
+      recptnAt: raw.recptnAt,
     };
   }
 }

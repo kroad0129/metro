@@ -15,6 +15,8 @@ function rawTrain(over: Partial<RawTrain> = {}): RawTrain {
     remainingSeconds: 120,
     status: 'TRAVELING',
     directionId: 'UP',
+    stationsAway: 1,
+    recptnAt: '2026-07-23T13:57:02+09:00',
     ...over,
   };
 }

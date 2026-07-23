@@ -35,6 +35,8 @@ function trainsResponse(over: Partial<TrainsResponse> = {}): TrainsResponse {
             remainingSeconds: 120,
             status: 'TRAVELING',
             positionRatio: 0.5,
+            stationsAway: 1,
+            recptnAt: new Date().toISOString(),
           },
         ],
       },
@@ -74,8 +76,8 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('개화 방면')).toBeInTheDocument());
     expect(screen.getByText('중앙보훈병원 방면')).toBeInTheDocument();
-    // 전역(1정거장) × 110초 가상 모델 → "1분 50초"
-    expect(screen.getByTestId('train-marker')).toHaveTextContent('1분 50초');
+    // barvlDt 120초를 그대로 카운트다운 시작점으로 → "2분"
+    expect(screen.getByTestId('train-marker')).toHaveTextContent('2분');
   });
 
   it('선택한 역을 localStorage에 저장한다', async () => {

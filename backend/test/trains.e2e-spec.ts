@@ -54,6 +54,8 @@ describe('GET /api/lines/:lineId/stations/:stationId/trains', () => {
         remainingSeconds: 125,
         status: 'DEPARTED',
         directionId: 'UP',
+        stationsAway: 1,
+        recptnAt: '2026-07-23T13:57:02+09:00',
       },
     ]);
 

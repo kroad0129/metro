@@ -49,8 +49,8 @@ describe('useTrainData', () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  it('위상이 그대로면 앵커(anchorSinceMs)를 유지하고, 바뀌면 새로 잡는다', async () => {
-    const trainIn = (status: 'TRAVELING' | 'ARRIVED') => ({
+  it('응답의 recptnAt을 그대로 전달한다 — 카운트다운 기준 시각', async () => {
+    const withRecptn = {
       ...response,
       directions: [
         {
@@ -62,39 +62,22 @@ describe('useTrainData', () => {
               trainType: 'LOCAL' as const,
               currentStation: { stationId: '1009000909', name: '등촌', order: 9, isExpressStop: false },
               remainingSeconds: 95,
-              status,
+              status: 'TRAVELING' as const,
               positionRatio: 0.5,
+              stationsAway: 1,
+              recptnAt: '2026-07-23T13:57:02+09:00',
             },
           ],
         },
       ],
-    });
-    const spy = vi
-      .spyOn(api, 'getTrains')
-      .mockResolvedValueOnce(trainIn('TRAVELING'))
-      .mockResolvedValueOnce(trainIn('TRAVELING'))
-      .mockResolvedValue(trainIn('ARRIVED'));
+    };
+    vi.spyOn(api, 'getTrains').mockResolvedValue(withRecptn);
 
-    const { result } = renderHook(() => useTrainData('1009000908', 15000));
+    const { result } = renderHook(() => useTrainData('1009000908'));
     await waitFor(() => expect(result.current.data).not.toBeNull());
-    const first = result.current.data?.directions[0].trains[0].anchorSinceMs;
-    expect(first).toBeDefined();
-
-    // 같은 위상으로 재조회 → 앵커 유지 (가상 열차가 이어서 전진한다)
-    await act(async () => {
-      vi.advanceTimersByTime(15000);
-    });
-    await waitFor(() => expect(spy).toHaveBeenCalledTimes(2));
-    expect(result.current.data?.directions[0].trains[0].anchorSinceMs).toBe(first);
-
-    // 위상 변경(도착) → 앵커 갱신
-    await act(async () => {
-      vi.advanceTimersByTime(15000);
-    });
-    await waitFor(() => expect(spy).toHaveBeenCalledTimes(3));
-    const third = result.current.data?.directions[0].trains[0].anchorSinceMs;
-    expect(third).toBeDefined();
-    expect(third).not.toBe(first);
+    const train = result.current.data?.directions[0].trains[0];
+    expect(train?.recptnAt).toBe('2026-07-23T13:57:02+09:00');
+    expect(train?.stationsAway).toBe(1);
   });
 
   it('pollMs를 주면 그 간격으로 자동 폴링한다', async () => {

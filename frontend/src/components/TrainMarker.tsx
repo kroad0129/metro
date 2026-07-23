@@ -6,7 +6,7 @@ type Props = {
   /** 트랙 위 가상 위치(%). 매초 갱신되며 CSS transition이 초 사이를 부드럽게 잇는다. */
   leftPercent: number;
   /** 가상 열차 모델의 남은 시간(초). 점 위치와 같은 모델에서 나와 서로 모순되지 않는다. */
-  remainingSeconds: number;
+  remainingSeconds: number | null;
   showExpressBadge: boolean;
   /** 트랙 오른쪽 끝에 고정된 선택역 이름 — 내 역 도착 판단과 aria-label에 쓴다. */
   selectedStationName: string;
@@ -27,7 +27,8 @@ export function TrainMarker({
   const stopLabel = !isSelectedStation && callout ? callout : null;
 
   const typeClass = train.trainType === 'EXPRESS' ? 'train-marker--express' : 'train-marker--local';
-  const timeAria = timeText === '곧 도착' || timeText === '도착' ? timeText : `${timeText} 후`;
+  const timeAria =
+    timeText === '곧 도착' || timeText === '도착' || timeText === '—' ? timeText : `${timeText} 후`;
   const ariaLabel = stopLabel
     ? `${selectedStationName} 방향, ${stopLabel}, ${timeAria}`
     : `${selectedStationName} 방향, ${timeAria}`;

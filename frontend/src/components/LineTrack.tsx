@@ -1,11 +1,10 @@
 import type { Station, Train } from '../types/subway';
-import { virtualRemainingSeconds } from '../utils/virtualTrain';
 import { TrainMarker } from './TrainMarker';
 
 type Props = {
   track: Station[];
-  /** 가상 위치가 계산된 트랙 안의 열차들. */
-  trains: { train: Train; gaps: number; left: number }[];
+  /** 가상 위치·남은 시간이 계산된 트랙 안의 열차들. */
+  trains: { train: Train; remaining: number | null; left: number }[];
   selected: Station;
 };
 
@@ -36,12 +35,12 @@ export function LineTrack({ track, trains, selected }: Props) {
       </div>
 
       <div className="line-track__trains">
-        {trains.map(({ train, gaps, left }) => (
+        {trains.map(({ train, remaining, left }) => (
           <TrainMarker
             key={train.trainId}
             train={train}
             leftPercent={left}
-            remainingSeconds={virtualRemainingSeconds(gaps)}
+            remainingSeconds={remaining}
             showExpressBadge={train.trainType === 'EXPRESS'}
             selectedStationName={selected.name}
           />
