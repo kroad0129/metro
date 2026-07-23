@@ -3,6 +3,7 @@ import { CacheService } from '../common/cache.service';
 import { LinesService } from '../lines/lines.service';
 import { DirectionId, Station } from '../lines/types';
 import { SeoulApiClient } from '../seoul-api/seoul-api.client';
+import { TimetableService } from './timetable.service';
 import { positionRatioOf } from './train-position';
 import { LineNotFoundError, StationNotFoundError } from './trains.errors';
 import { DirectionBlock, RawTrain, Train, TrainsResponse } from './types';
@@ -22,6 +23,7 @@ export class TrainsService {
     private readonly lines: LinesService,
     private readonly cache: CacheService,
     private readonly client: SeoulApiClient,
+    private readonly timetable: TimetableService,
   ) {}
 
   async getTrains(lineId: string, stationId: string): Promise<TrainsResponse> {
@@ -58,25 +60,44 @@ export class TrainsService {
     }
   }
 
-  private build(
+  private async build(
     lineId: string,
     lineName: string,
     station: Station,
     raws: RawTrain[],
     updatedAt: string,
     stale: boolean,
-  ): TrainsResponse {
+  ): Promise<TrainsResponse> {
     const names = DIRECTION_NAMES[lineId] ?? { UP: '상행', DOWN: '하행' };
 
-    const directions: DirectionBlock[] = DIRECTION_ORDER.map((directionId) => ({
-      directionId,
-      directionName: names[directionId],
-      trains: raws
-        .filter((raw) => raw.directionId === directionId)
-        .map((raw) => this.toTrain(lineId, raw, station))
-        .filter((train): train is Train => train !== null)
-        .sort(byArrivalSoonest),
-    }));
+    const directions: DirectionBlock[] = await Promise.all(
+      DIRECTION_ORDER.map(async (directionId) => {
+        const trains = raws
+          .filter((raw) => raw.directionId === directionId)
+          .map((raw) => this.toTrain(lineId, raw, station))
+          .filter((train): train is Train => train !== null)
+          .sort(byArrivalSoonest);
+
+        const block: DirectionBlock = {
+          directionId,
+          directionName: names[directionId],
+          trains,
+        };
+
+        // 접근 중인 열차가 없으면(심야·막차 이후) 시간표에서 다음 출발을 채운다.
+        // 시간표 조회 실패가 본 응답을 막아서는 안 된다 — null로 두고 경고만 남긴다.
+        if (trains.length === 0) {
+          try {
+            block.nextSchedule = await this.timetable.nextDeparture(station, directionId);
+          } catch (error) {
+            this.logger.warn(`시간표 조회 실패 (${station.name} ${directionId}): ${String(error)}`);
+            block.nextSchedule = null;
+          }
+        }
+
+        return block;
+      }),
+    );
 
     return {
       line: { id: lineId, name: lineName },

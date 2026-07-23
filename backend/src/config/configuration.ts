@@ -2,6 +2,8 @@ export type AppConfig = {
   port: number;
   seoulApiKey: string;
   seoulBaseUrl: string;
+  /** 시간표 API는 실시간 API와 호스트가 다르다(열린데이터광장 일반 API). */
+  seoulTimetableBaseUrl: string;
   cacheTtlMs: number;
   staleMaxAgeMs: number;
 };
@@ -25,6 +27,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     seoulApiKey: required(env, 'SEOUL_OPEN_API_KEY'),
     seoulBaseUrl:
       env.SEOUL_SUBWAY_REALTIME_BASE_URL?.trim() || 'http://swopenapi.seoul.go.kr/api/subway',
+    seoulTimetableBaseUrl:
+      env.SEOUL_SUBWAY_TIMETABLE_BASE_URL?.trim() || 'http://openapi.seoul.go.kr:8088',
     cacheTtlMs: numberOr(env, 'SUBWAY_CACHE_TTL_MS', 10_000),
     staleMaxAgeMs: numberOr(env, 'SUBWAY_STALE_MAX_AGE_MS', 300_000),
   };

@@ -3,6 +3,7 @@ import { CacheService } from '../common/cache.service';
 import { loadConfig } from '../config/configuration';
 import { LinesModule } from '../lines/lines.module';
 import { SeoulApiModule } from '../seoul-api/seoul-api.module';
+import { TimetableService } from './timetable.service';
 import { TrainsController } from './trains.controller';
 import { TrainsService } from './trains.service';
 
@@ -11,6 +12,7 @@ import { TrainsService } from './trains.service';
   controllers: [TrainsController],
   providers: [
     TrainsService,
+    TimetableService,
     {
       provide: CacheService,
       useFactory: () => {

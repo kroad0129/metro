@@ -35,6 +35,11 @@ export type DirectionBlock = {
   directionId: DirectionId;
   directionName: string;
   trains: Train[];
+  /**
+   * 접근 중인 열차가 없을 때의 시간표 기준 다음 출발(심야·막차 안내).
+   * 열차가 있으면 생략, 시간표 조회가 실패하면 null.
+   */
+  nextSchedule?: { departureAt: string; firstOfDay: boolean } | null;
 };
 
 export type TrainsResponse = {

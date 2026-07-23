@@ -11,6 +11,7 @@ const CONFIG = {
   port: 3000,
   seoulApiKey: 'TESTKEY',
   seoulBaseUrl: 'http://example.test/api/subway',
+  seoulTimetableBaseUrl: 'http://example.test:8088',
   cacheTtlMs: 10_000,
   staleMaxAgeMs: 300_000,
 };
@@ -176,5 +177,54 @@ describe('SeoulApiClient', () => {
     const trains = await client.fetchStationArrivals('당산', LINE9);
     expect(trains).toHaveLength(1);
     expect(trains[0].trainId).toBe('2');
+  });
+});
+
+describe('SeoulApiClient.fetchStationTimetable', () => {
+  const okBody = {
+    SearchSTNTimeTableByIDService: {
+      list_total_count: 2,
+      RESULT: { CODE: 'INFO-000', MESSAGE: '정상 처리되었습니다' },
+      row: [
+        { DESTSTATION: '4138', LEFTTIME: '05:40:20' },
+        { DESTSTATION: '4138', LEFTTIME: '24:48:25' },
+      ],
+    },
+  };
+
+  it('시간표 호스트로 URL을 만들어 호출하고 행 배열을 반환한다', async () => {
+    const http = jest.fn().mockResolvedValue(okBody);
+    const client = new SeoulApiClient(CONFIG, http);
+
+    const rows = await client.fetchStationTimetable('4108', '1', '2');
+
+    expect(http).toHaveBeenCalledWith(
+      'http://example.test:8088/TESTKEY/json/SearchSTNTimeTableByIDService/1/500/4108/1/2',
+    );
+    expect(rows).toHaveLength(2);
+  });
+
+  it('평평한 오류 봉투({ RESULT: { CODE } })도 처리한다', async () => {
+    const http = jest.fn().mockResolvedValue({
+      RESULT: { CODE: 'INFO-100', MESSAGE: '인증키가 유효하지 않습니다' },
+    });
+    const client = new SeoulApiClient(CONFIG, http);
+    await expect(client.fetchStationTimetable('4108', '1', '1')).rejects.toBeInstanceOf(
+      UpstreamUnavailableError,
+    );
+  });
+
+  it('데이터 없음(INFO-200)은 빈 배열이다', async () => {
+    const http = jest.fn().mockResolvedValue({ RESULT: { CODE: 'INFO-200' } });
+    const client = new SeoulApiClient(CONFIG, http);
+    await expect(client.fetchStationTimetable('4108', '3', '1')).resolves.toEqual([]);
+  });
+
+  it('코드도 행 목록도 없으면 오류다', async () => {
+    const http = jest.fn().mockResolvedValue({ unexpected: true });
+    const client = new SeoulApiClient(CONFIG, http);
+    await expect(client.fetchStationTimetable('4108', '1', '1')).rejects.toBeInstanceOf(
+      UpstreamUnavailableError,
+    );
   });
 });

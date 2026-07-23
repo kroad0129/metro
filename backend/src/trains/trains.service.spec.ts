@@ -21,12 +21,16 @@ function rawTrain(over: Partial<RawTrain> = {}): RawTrain {
   };
 }
 
-function build(fetchImpl: () => Promise<RawTrain[]>) {
+function build(
+  fetchImpl: () => Promise<RawTrain[]>,
+  nextDeparture: jest.Mock = jest.fn(async () => null),
+) {
   const lines = new LinesService();
   const cache = new CacheService(10_000, 300_000);
   const client = { fetchStationArrivals: jest.fn(fetchImpl) };
-  const service = new TrainsService(lines, cache, client as never);
-  return { service, client, cache };
+  const timetable = { nextDeparture };
+  const service = new TrainsService(lines, cache, client as never, timetable as never);
+  return { service, client, cache, timetable };
 }
 
 describe('TrainsService', () => {
@@ -209,5 +213,39 @@ describe('TrainsService', () => {
     const { service, client } = build(async () => []);
     await service.getTrains('9', 증미);
     expect(client.fetchStationArrivals).toHaveBeenCalledWith('증미', '1009');
+  });
+
+  describe('시간표 기준 다음 출발(nextSchedule)', () => {
+    it('열차가 없는 방향에는 시간표의 다음 출발을 채운다', async () => {
+      const nextDeparture = jest.fn(async () => ({
+        departureAt: '2026-07-24T05:40:50+09:00',
+        firstOfDay: true,
+      }));
+      const { service } = build(async () => [], nextDeparture);
+      const result = await service.getTrains('9', 증미);
+      expect(result.directions[0].nextSchedule).toEqual({
+        departureAt: '2026-07-24T05:40:50+09:00',
+        firstOfDay: true,
+      });
+      expect(nextDeparture).toHaveBeenCalledTimes(2); // 양방향 모두 비었으므로
+    });
+
+    it('열차가 있는 방향에는 시간표를 조회하지 않는다', async () => {
+      const nextDeparture = jest.fn(async () => null);
+      const { service } = build(async () => [rawTrain({ directionId: 'UP' })], nextDeparture);
+      const result = await service.getTrains('9', 증미);
+      expect(result.directions[0].nextSchedule).toBeUndefined(); // UP에는 열차가 있다
+      expect(nextDeparture).toHaveBeenCalledTimes(1); // DOWN만
+    });
+
+    it('시간표 조회가 실패해도 본 응답은 성공한다 (nextSchedule=null)', async () => {
+      const nextDeparture = jest.fn(async () => {
+        throw new Error('timetable down');
+      });
+      const { service } = build(async () => [], nextDeparture);
+      const result = await service.getTrains('9', 증미);
+      expect(result.directions[0].nextSchedule).toBeNull();
+      expect(result.directions[1].nextSchedule).toBeNull();
+    });
   });
 });

@@ -52,6 +52,31 @@ describe('DirectionPanel', () => {
     expect(screen.getByText('접근 중인 열차 없음')).toBeInTheDocument();
   });
 
+  it('열차가 없어도 시간표의 다음 출발이 있으면 시각을 알려준다', () => {
+    const withSchedule = {
+      ...block([]),
+      nextSchedule: { departureAt: '2026-07-23T23:47:10+09:00', firstOfDay: false },
+    };
+    render(<DirectionPanel stations={stations} selected={증미} block={withSchedule} nowMs={now} />);
+    expect(screen.getByText('다음 열차 23:47 출발 (시간표 기준)')).toBeInTheDocument();
+    expect(screen.queryByText('접근 중인 열차 없음')).not.toBeInTheDocument();
+  });
+
+  it('운행이 끝났으면 첫차를 안내한다', () => {
+    const withFirst = {
+      ...block([]),
+      nextSchedule: { departureAt: '2026-07-24T05:40:50+09:00', firstOfDay: true },
+    };
+    render(<DirectionPanel stations={stations} selected={증미} block={withFirst} nowMs={now} />);
+    expect(screen.getByText('운행 종료 — 첫차 05:40 (시간표 기준)')).toBeInTheDocument();
+  });
+
+  it('시간표 조회가 실패했으면(null) 기존 문구를 보여준다', () => {
+    const failed = { ...block([]), nextSchedule: null };
+    render(<DirectionPanel stations={stations} selected={증미} block={failed} nowMs={now} />);
+    expect(screen.getByText('접근 중인 열차 없음')).toBeInTheDocument();
+  });
+
   it('트랙 안의 열차를 점으로 표시하고 남은 시간을 붙인다', () => {
     render(<DirectionPanel stations={stations} selected={증미} block={block([train()])} nowMs={now} />);
     const marker = screen.getByTestId('train-marker');

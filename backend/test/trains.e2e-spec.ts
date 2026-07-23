@@ -9,6 +9,7 @@ import {
   UpstreamRateLimitedError,
   UpstreamUnavailableError,
 } from '../src/seoul-api/seoul-api.errors';
+import { TimetableService } from '../src/trains/timetable.service';
 import { TrainsController } from '../src/trains/trains.controller';
 import { TrainsService } from '../src/trains/trains.service';
 import { RawTrain } from '../src/trains/types';
@@ -30,6 +31,11 @@ async function createApp(
       {
         provide: SeoulApiClient,
         useValue: { fetchStationArrivals: jest.fn(fetchImpl) },
+      },
+      {
+        // e2e에서는 시간표를 조회하지 않는다 — 열차가 없는 방향은 nextSchedule: null.
+        provide: TimetableService,
+        useValue: { nextDeparture: jest.fn(async () => null) },
       },
     ],
   }).compile();

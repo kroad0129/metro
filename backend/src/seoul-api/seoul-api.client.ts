@@ -9,7 +9,7 @@ import {
 import { mapArrivalResponse } from './seoul-api.mapper';
 import { SeoulArrivalResponse } from './seoul-api.types';
 
-export type HttpGet = (url: string) => Promise<SeoulArrivalResponse>;
+export type HttpGet = (url: string) => Promise<unknown>;
 
 /**
  * 서울 열린데이터광장 공식 스펙에 문서화된 코드: INFO-000(정상), INFO-200(데이터 없음),
@@ -25,7 +25,7 @@ const OK_CODES = ['INFO-000'];
 const INVALID_KEY_CODES = ['INFO-100'];
 
 const defaultHttpGet: HttpGet = async (url) => {
-  const response = await axios.get<SeoulArrivalResponse>(url, {
+  const response = await axios.get<unknown>(url, {
     timeout: 5000,
   });
   return response.data;
@@ -81,7 +81,7 @@ export class SeoulApiClient {
 
     let body: SeoulArrivalResponse;
     try {
-      body = await this.httpGet(url);
+      body = (await this.httpGet(url)) as SeoulArrivalResponse;
     } catch (error) {
       this.logger.warn(`서울시 API 호출 실패: ${String(error)}`);
       throw new UpstreamUnavailableError();
@@ -122,5 +122,56 @@ export class SeoulApiClient {
     }
 
     return mapArrivalResponse(body, expectedLineId);
+  }
+
+  /**
+   * 역별 시간표(SearchSTNTimeTableByIDService) 원본 행들을 가져온다.
+   * 실시간 API와 호스트가 다르고(열린데이터광장 일반 API), 봉투 구조도 다르다:
+   * 성공 { SearchSTNTimeTableByIDService: { RESULT: { CODE }, row: [...] } },
+   * 실패 { RESULT: { CODE, MESSAGE } } (최상위 평면) — 둘 다 처리한다.
+   *
+   * @param stationCd 시간표용 역 코드(9호선은 4100 + 역 순번, 실측 검증됨)
+   * @param weekTag 1 평일 / 2 토요일 / 3 휴일(일요일)
+   * @param inoutTag 1 / 2 — 방향 축. 의미가 노선마다 달라 신뢰하지 않고, 행의 종착역
+   *   코드로 방향을 판정한다(mapTimetableRows). 두 값 모두 호출해 합쳐야 전체가 된다.
+   */
+  async fetchStationTimetable(
+    stationCd: string,
+    weekTag: '1' | '2' | '3',
+    inoutTag: '1' | '2',
+  ): Promise<unknown[]> {
+    const url =
+      `${this.config.seoulTimetableBaseUrl}/${this.config.seoulApiKey}` +
+      `/json/SearchSTNTimeTableByIDService/1/500/${stationCd}/${weekTag}/${inoutTag}`;
+
+    this.callCount += 1;
+    this.logger.log(`서울시 시간표 호출 #${this.callCount} (역 ${stationCd}, 주 ${weekTag}, 축 ${inoutTag})`);
+
+    let body: unknown;
+    try {
+      body = await this.httpGet(url);
+    } catch (error) {
+      this.logger.warn(`서울시 시간표 호출 실패: ${String(error)}`);
+      throw new UpstreamUnavailableError();
+    }
+
+    if (!isRecord(body)) throw new UpstreamUnavailableError();
+
+    const wrapper = body.SearchSTNTimeTableByIDService;
+    const result = isRecord(wrapper) ? wrapper.RESULT : body.RESULT;
+    const code = isRecord(result) && typeof result.CODE === 'string' ? result.CODE : undefined;
+    const rows = isRecord(wrapper) && Array.isArray(wrapper.row) ? wrapper.row : undefined;
+
+    if (code && NO_DATA_CODES.includes(code)) return [];
+    if (code && RATE_LIMIT_CODES.includes(code)) throw new UpstreamRateLimitedError();
+    if (code && !OK_CODES.includes(code)) {
+      this.logger.warn(`시간표 응답 코드: ${code}`);
+      throw new UpstreamUnavailableError();
+    }
+    if (!rows) {
+      this.logger.warn('시간표 응답에 행 목록이 없습니다');
+      throw new UpstreamUnavailableError();
+    }
+    return rows;
   }
 }
