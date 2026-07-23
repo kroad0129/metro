@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Station, Train, TrainStatus } from '../types/subway';
-import { buildTrack, formatRemaining, trainCallout, TRACK_SPAN } from './trackPosition';
+import type { Station } from '../types/subway';
+import { buildTrack, formatRemaining, TRACK_SPAN } from './trackPosition';
 
 const stations: Station[] = Array.from({ length: 38 }, (_, i) => ({
   stationId: `${1009000900 + i + 1}`,
@@ -12,23 +12,6 @@ const stations: Station[] = Array.from({ length: 38 }, (_, i) => ({
 const 증미 = stations[7]; // order 8
 const 개화 = stations[0]; // order 1
 const 중앙보훈병원 = stations[37]; // order 38
-
-function trainAt(
-  station: Station,
-  remainingSeconds: number | null,
-  status: TrainStatus = 'TRAVELING',
-): Train {
-  return {
-    trainId: 'T',
-    trainType: 'LOCAL',
-    currentStation: station,
-    remainingSeconds,
-    status,
-    positionRatio: 0.5,
-    stationsAway: 1,
-    recptnAt: '2026-07-23T13:57:02+09:00',
-  };
-}
 
 describe('buildTrack', () => {
   it('기본 구간 길이는 2다', () => {
@@ -87,22 +70,5 @@ describe('formatRemaining', () => {
   it('0 이하는 곧 도착으로 표시한다', () => {
     expect(formatRemaining(0)).toBe('곧 도착');
     expect(formatRemaining(-30)).toBe('곧 도착');
-  });
-});
-
-describe('trainCallout', () => {
-  it('내 역 기준: 도착하면 "도착", 진입 중이면 "곧 도착"', () => {
-    expect(trainCallout(trainAt(증미, 20, 'ARRIVED'), true)).toBe('도착');
-    expect(trainCallout(trainAt(증미, 20, 'APPROACHING'), true)).toBe('곧 도착');
-  });
-
-  it('중간 역 기준: 서 있으면 "정차", 들어서는 중이면 "진입" — 내 역 도착과 헷갈리지 않게', () => {
-    expect(trainCallout(trainAt(개화, 95, 'ARRIVED'), false)).toBe('정차');
-    expect(trainCallout(trainAt(개화, 95, 'APPROACHING'), false)).toBe('진입');
-  });
-
-  it('이동 중(운행·출발)에는 아무것도 표시하지 않는다 — 화살표가 말한다', () => {
-    expect(trainCallout(trainAt(개화, 95, 'TRAVELING'), false)).toBeNull();
-    expect(trainCallout(trainAt(개화, 95, 'DEPARTED'), false)).toBeNull();
   });
 });

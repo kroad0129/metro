@@ -76,9 +76,10 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('개화 방면')).toBeInTheDocument());
     expect(screen.getByText('중앙보훈병원 방면')).toBeInTheDocument();
-    // 이동 중(TRAVELING) 열차는 구간 화살표(train-flow)로 그려지고 시간이 붙는다.
-    // 정확한 값은 virtualTrain 단위 테스트가 검증하므로 여기선 시간이 뜨는지만 본다.
-    expect(screen.getByTestId('train-flow')).toHaveTextContent(/분|초/);
+    // 열차는 라인 위 마크로, 시간은 방면 이름 밑 도착 칸에 나온다.
+    // 정확한 값은 단위 테스트가 검증하므로 여기선 둘 다 뜨는지만 본다.
+    expect(screen.getByTestId('track-mark')).toHaveTextContent('이동');
+    expect(screen.getAllByTestId('arrival')[0]).toHaveTextContent(/분|초|곧 도착/);
   });
 
   it('선택한 역을 localStorage에 저장한다', async () => {

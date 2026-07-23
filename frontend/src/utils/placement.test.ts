@@ -101,6 +101,13 @@ describe('segmentPercents — 구간의 해당 ⅓을 트랙 좌표(%)로', () =
     expect(segmentPercents(2, 3, 2, 'run')).toBeNull();
   });
 
+  it('트랙 끝 역에 진입 중이면 왼쪽 가장자리에 걸쳐 보인다 — 갑자기 튀어나오지 않게', () => {
+    const edge = segmentPercents(2, 3, 2, 'arrive');
+    expect(edge).not.toBeNull();
+    expect(edge!.left).toBe(0);
+    expect(edge!.width).toBeGreaterThan(0);
+  });
+
   it('역이 하나뿐인 트랙(노선 끝)에는 구간이 없다', () => {
     expect(segmentPercents(0, 1, 0, 'run')).toBeNull();
   });

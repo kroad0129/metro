@@ -81,6 +81,8 @@ export default function App() {
               selected={selected}
               block={block}
               nowMs={nowMs}
+              /* 아래 방향 패널은 진행 방향을 반전해 두 패널이 서로 마주 보게 한다. */
+              flip={block.directionId === 'DOWN'}
             />
           ))}
         </div>

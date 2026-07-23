@@ -1,4 +1,4 @@
-import type { DirectionId, Station, Train } from '../types/subway';
+import type { DirectionId, Station } from '../types/subway';
 
 /** 선택한 역 앞으로 몇 개 역까지 트랙에 그릴지. 2 전역까지(약 4분치 시야). 서울시 API가
  *  정차 상태를 정확히 주는 범위(내 역 + 전역)에 가깝게, 가까운 열차만 또렷이 보여준다. */
@@ -43,16 +43,3 @@ export function formatRemaining(seconds: number | null): string {
   return rest === 0 ? `${minutes}분` : `${minutes}분 ${rest}초`;
 }
 
-/**
- * 열차 위에 띄울 짧은 안내 — 기호(점·맥동)만으로는 안 읽혀서 상태를 글자로 함께 말한다.
- * - 내 역: "도착" / "곧 도착" (시간 자리를 대신한다 — 행동 판단용 문구)
- * - 중간 역: "정차" / "진입" (그 역 위에 뜬다 — "도착"이라 쓰면 내 역 도착과 헷갈린다)
- * - 이동 중(운행·출발): null — 화살표 흐름이 말하고, 출발 직후 표시는 TrainFlow가 맡는다.
- */
-export type Callout = '도착' | '곧 도착' | '정차' | '진입';
-
-export function trainCallout(train: Train, isSelectedStation: boolean): Callout | null {
-  if (train.status === 'ARRIVED') return isSelectedStation ? '도착' : '정차';
-  if (train.status === 'APPROACHING') return isSelectedStation ? '곧 도착' : '진입';
-  return null;
-}

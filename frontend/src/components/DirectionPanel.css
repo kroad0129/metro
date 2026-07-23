@@ -4,257 +4,247 @@
 }
 
 .direction-panel__title {
-  margin: 0 0 1.5rem;
+  margin: 0 0 0.35rem;
   font-size: 0.95rem;
   font-weight: 600;
   color: #444;
 }
 
-.direction-panel__empty,
-.direction-panel__next {
+/* 진행 방향은 열차마다 화살표를 다는 대신 방면 이름 옆에 한 번만 알린다. */
+.direction-panel__dir {
+  margin: 0 0.3rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #888;
+}
+
+.direction-panel__empty {
   margin: 0.75rem 0 0;
   font-size: 0.85rem;
   color: #888;
 }
 
-.line-track {
-  position: relative;
-  height: 4rem;
+/* ── 도착 안내 (방면 이름 밑 가로 두 칸) ──────────────────── */
+
+/* 두 칸을 같은 너비로 못 박는다 — 글자 수가 바뀌어도 자리가 흔들리지 않는다. */
+.arrivals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
 }
 
-.line-track__rail {
+.arrival {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: 0.4rem;
+  background: #f6f7f6;
+  /* 왼쪽 색띠로 일반·급행을 구분한다. */
+  border-left: 3px solid var(--train-color, #dcdcdc);
+}
+
+.arrival--local {
+  --train-color: #1a7f37;
+}
+
+.arrival--express {
+  --train-color: #c8102e;
+  background: #fdf3f4;
+}
+
+.arrival--empty {
+  background: #fafafa;
+}
+
+.arrival__label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #9a9a9a;
+  letter-spacing: 0.02em;
+}
+
+.arrival__body {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 1.15rem;
+}
+
+.arrival__time {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  white-space: nowrap;
+  /* 숫자 폭을 고정해 초가 바뀌어도 글자가 들썩이지 않는다. */
+  font-variant-numeric: tabular-nums;
+}
+
+.arrival--express .arrival__time {
+  color: var(--train-color);
+}
+
+.arrival--empty .arrival__time {
+  color: #cfcfcf;
+  font-weight: 500;
+}
+
+.arrival__tag {
+  padding: 0 0.25rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--train-color);
+  border-radius: 0.2rem;
+  white-space: nowrap;
+}
+
+/* ── 노선 라인 ─────────────────────────────────────────────── */
+
+.track {
+  position: relative;
+  height: 2.9rem;
+  margin-top: 0.25rem;
+}
+
+/* 선은 끊기지 않는다 — 열차가 그 위에 올라탄다. */
+.track__rail {
   position: absolute;
-  top: 0;
+  top: 1.95rem;
   left: 0;
   right: 0;
   height: 2px;
   background: #ccc;
 }
 
-.line-track__stations {
+/* 점이든 화살표든 마크의 중심이 정확히 선 위에 놓인다. */
+.track__mark {
   position: absolute;
-  top: 0.6rem;
-  left: 0;
-  right: 0;
+  top: 1.95rem;
+  transform: translate(-50%, -50%);
+  line-height: 0;
 }
 
-.line-track__station {
+/* 출발·진입·정차·이동 딱지는 마크 바로 위에 — 선 아래는 역 이름 몫이다. */
+.track__above {
   position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 0.25rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #666;
+  white-space: nowrap;
+}
+
+/* ── 정차 중인 열차 — 라인 위에 멈춰 선 점 ────────────────── */
+
+.track__dot {
+  display: block;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  /* 배경은 인라인 스타일로 — 겹치면 반은 초록 반은 빨강이 된다. */
+  box-shadow: 0 0 0 2px #fff;
+}
+
+/* ── 움직이는 열차 — 진행 방향으로 흐르는 화살표 ──────────── */
+
+.track__arrows-stack {
+  position: relative;
+  display: grid;
+}
+
+/* 겹친 경우 두 색의 흐름이 같은 자리에 포개져 번갈아 지나간다. */
+.track__arrows-stack > .track__arrows {
+  grid-area: 1 / 1;
+}
+
+.track__arrows {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  /* 상자 높이를 못 박아 마크 중심이 늘 선 위에 온다(글자 metrics에 기대지 않는다). */
+  height: 1.1rem;
+}
+
+/* 흐름은 진행 방향으로 — flip이면 오른쪽에서 왼쪽으로 파도가 간다. */
+.track__arrows--flip {
+  flex-direction: row-reverse;
+}
+
+/* 정사각형의 두 변만 남겨 45° 돌리면 정확히 상자 한가운데 놓인 꺾쇠가 된다. */
+.track__arrow {
+  display: block;
+  box-sizing: border-box;
+  width: 0.62rem;
+  height: 0.62rem;
+  border-top: 0.16rem solid currentColor;
+  border-right: 0.16rem solid currentColor;
+  --rot: 45deg;
+  /* 회전은 기본 상태에도 걸어 둔다 — 애니메이션 시작 전에 안 돌아간 "ㄱ"이 보이지 않게. */
+  transform: rotate(var(--rot));
+  opacity: 0;
+}
+
+.track__arrows--flip .track__arrow {
+  --rot: -135deg;
+}
+
+/* 지나가는 파도가 눈에 띄게 — 밝아질 때 커졌다 잦아든다. */
+@keyframes track-wave {
+  0%,
+  50%,
+  100% {
+    opacity: 0;
+    transform: rotate(var(--rot)) scale(0.75);
+  }
+  15% {
+    opacity: 1;
+    transform: rotate(var(--rot)) scale(1.3);
+  }
+  35% {
+    opacity: 0.18;
+    transform: rotate(var(--rot)) scale(0.9);
+  }
+}
+
+.track__arrows .track__arrow {
+  /* --wave-offset: 겹친 두 색이 반 박자씩 어긋나 번갈아 보인다(겹치지 않으면 0). */
+  animation: track-wave 1.4s ease-out infinite;
+  animation-delay: var(--wave-offset, 0s);
+  /* 딜레이 동안에도 첫 프레임 모습을 유지한다 — 시작 순간의 깜빡임 방지. */
+  animation-fill-mode: backwards;
+}
+
+.track__arrows .track__arrow:nth-child(2) {
+  animation-delay: calc(var(--wave-offset, 0s) + 0.18s);
+}
+
+.track__arrows .track__arrow:nth-child(3) {
+  animation-delay: calc(var(--wave-offset, 0s) + 0.36s);
+}
+
+/* ── 역 이름 (선 아래 고정 줄) ─────────────────────────────── */
+
+.track__names {
+  position: relative;
+  height: 1.1rem;
+}
+
+.track__name {
+  position: absolute;
+  top: 0;
   transform: translateX(-50%);
   font-size: 0.7rem;
   color: #999;
   white-space: nowrap;
 }
 
-.line-track__station--selected {
+.track__name--sel {
   color: #1a1a1a;
   font-weight: 700;
-}
-
-.line-track__trains {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-}
-
-@keyframes train-marker-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.train-marker {
-  position: absolute;
-  top: -0.35rem;
-  /* --lane: 시각적 자리가 겹친 열차는 한 줄(2.8rem)씩 아래로 내려 그린다. */
-  transform: translateX(-50%) translateY(calc(var(--lane, 0) * 2.8rem));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  /* 새 열차가 뜰 때 톡 튀어나오지 않게 부드럽게 나타난다(첫 마운트에만 재생). */
-  animation: train-marker-in 0.4s ease-out;
-}
-
-/* dot-wrap은 예전 .train-marker__dot과 정확히 같은 크기를 유지한다 —
-   train-marker가 align-items:center로 이 요소를 중앙 정렬하므로,
-   화살표(absolute)를 더해도 점의 중심(=trainLeftPercent 위치)이 밀리지 않는다. */
-.train-marker__dot-wrap {
-  position: relative;
-  width: 0.75rem;
-  height: 0.75rem;
-}
-
-.train-marker__dot {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: var(--train-color);
-}
-
-.train-marker__arrow {
-  position: absolute;
-  left: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  margin-left: 3px;
-  font-size: 0.95rem;
-  line-height: 1;
-  color: var(--train-color);
-}
-
-/* 열차 종류로 점·화살표 색을 구분한다: 일반 초록, 급행 빨강. */
-.train-marker--local {
-  --train-color: #1a7f37;
-}
-
-.train-marker--express {
-  --train-color: #c8102e;
-}
-
-.train-marker__time {
-  margin-top: 1.6rem;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #1a1a1a;
-  white-space: nowrap;
-}
-
-/* 점 바로 위에 뜨는 짧은 안내("도착"/"곧 도착"). 절대 위치라 점을 아래로 밀지 않는다.
-   정차한 점은 역에 붙어 있으므로 이 안내는 자연히 그 역 위에 뜬다. */
-.train-marker__callout {
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-bottom: 0.2rem;
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: var(--train-color);
-  white-space: nowrap;
-}
-
-/* 운영사 추정 소요를 넘겨 같은 구간에 머무는 중 — 멈춰 있는 점이 버그가 아니라 실제 지연임을 알린다. */
-.train-marker__delay {
-  margin-top: 0.1rem;
-  padding: 0 0.25rem;
-  font-size: 0.6rem;
-  color: #8a6d00;
-  background: #fff6e0;
-  border-radius: 0.2rem;
-}
-
-.train-marker__badge {
-  margin-top: 0.15rem;
-  padding: 0 0.25rem;
-  font-size: 0.6rem;
-  color: #fff;
-  background: #c8102e;
-  border-radius: 0.2rem;
-}
-
-/* 이동 중인 열차 — 두 역 사이 구간에서 진행 방향으로 흐르는 화살표.
-   구간 내 위치는 API가 모르는 정보라 점으로 주장하지 않는다(이산 배치 모델). */
-.train-flow {
-  position: absolute;
-  top: -0.55rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  animation: train-marker-in 0.4s ease-out;
-  /* --lane: 시각적 자리가 겹친 열차는 한 줄(2.8rem)씩 아래로 내려 그린다. */
-  transform: translateY(calc(var(--lane, 0) * 2.8rem));
-}
-
-.train-flow--local {
-  --train-color: #1a7f37;
-}
-
-.train-flow--express {
-  --train-color: #c8102e;
-}
-
-/* 막 출발한 열차의 "출발" — 화살표 위 가운데, 열차 색으로. */
-.train-flow__callout {
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-bottom: 0.2rem;
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: var(--train-color);
-  white-space: nowrap;
-}
-
-.train-flow__chevrons {
-  display: flex;
-  justify-content: center;
-  gap: 0.35rem;
-  height: 1.1rem;
-  font-size: 1.1rem;
-  line-height: 1.1rem;
-  font-weight: 700;
-  color: var(--train-color);
-}
-
-/* 밝기 파도가 왼쪽→오른쪽(진행 방향)으로 흘러 "달리는 중"을 전달한다. */
-@keyframes train-flow-wave {
-  0%,
-  60%,
-  100% {
-    opacity: 0.2;
-  }
-  20% {
-    opacity: 1;
-  }
-}
-
-.train-flow__chev {
-  animation: train-flow-wave 1.4s linear infinite;
-}
-
-.train-flow__chev:nth-child(2) {
-  animation-delay: 0.18s;
-}
-
-.train-flow__chev:nth-child(3) {
-  animation-delay: 0.36s;
-}
-
-/* 화살표 아래 시간·배지 — TrainMarker의 시간 위치와 같은 높이에 오도록 맞춘다. */
-.train-flow__meta {
-  margin-top: 1.45rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.train-flow__time {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #1a1a1a;
-  white-space: nowrap;
-}
-
-.train-flow__delay {
-  margin-top: 0.1rem;
-  padding: 0 0.25rem;
-  font-size: 0.6rem;
-  color: #8a6d00;
-  background: #fff6e0;
-  border-radius: 0.2rem;
-}
-
-.train-flow__badge {
-  margin-top: 0.15rem;
-  padding: 0 0.25rem;
-  font-size: 0.6rem;
-  color: #fff;
-  background: #c8102e;
-  border-radius: 0.2rem;
 }

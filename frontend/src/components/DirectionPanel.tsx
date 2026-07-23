@@ -1,71 +1,53 @@
 import type { DirectionBlock, Station } from '../types/subway';
-import { assignLanes, segmentPercents, trainPlacement } from '../utils/placement';
-import { buildTrack, formatRemaining } from '../utils/trackPosition';
-import {
-  DELAY_NOTICE_SECONDS,
-  leftPercentFromGaps,
-  liveRemainingSeconds,
-  stallSeconds,
-} from '../utils/virtualTrain';
-import { LineTrack, type OnTrackTrain } from './LineTrack';
+import { layoutDirection } from '../utils/panelLayout';
+import { arrivalSlots, groupMarks } from '../utils/trackMarks';
+import { ArrivalRow } from './ArrivalRow';
+import { TrackLine } from './TrackLine';
 import './DirectionPanel.css';
 
 type Props = {
   stations: Station[];
   selected: Station;
   block: DirectionBlock;
-  /** 화면 전용 초 단위 틱(useNow) — 가상 열차를 매초 전진시킨다. 조회를 유발하지 않는다. */
+  /** 화면 전용 초 단위 틱(useNow) — 남은 시간을 매초 줄인다. 조회를 유발하지 않는다. */
   nowMs: number;
+  /**
+   * true면 선택역이 왼쪽 끝, 열차는 오른쪽에서 왼쪽으로 흐른다.
+   * 두 방향 패널이 서로 반대를 보게 해 실제 승강장처럼 읽히게 한다.
+   */
+  flip?: boolean;
 };
 
-export function DirectionPanel({ stations, selected, block, nowMs }: Props) {
-  const track = buildTrack(stations, selected, block.directionId);
-  const maxGaps = track.length - 1;
-
-  const positioned = block.trains.map((train) => {
-    // 이산 배치: 역에 있으면 점, 구간에 있으면 화살표 흐름. 위치는 보간하지 않는다.
-    const placement = trainPlacement(train);
-    let pos: OnTrackTrain['pos'] | null = null;
-    if (placement?.kind === 'station') {
-      const left = leftPercentFromGaps(maxGaps, placement.gap);
-      if (left !== null) pos = { kind: 'station', left };
-    } else if (placement?.kind === 'segment') {
-      const seg = segmentPercents(maxGaps, placement.fromGap, placement.toGap, placement.phase);
-      if (seg) pos = { kind: 'segment', ...seg };
-    }
-    return {
-      train,
-      pos,
-      passed: placement === null && train.stationsAway === 0,
-      remaining: liveRemainingSeconds(train, nowMs),
-      delayed: stallSeconds(train, nowMs) > DELAY_NOTICE_SECONDS,
-    };
-  });
-
-  const placed = positioned.filter((p): p is typeof p & { pos: OnTrackTrain['pos'] } => p.pos !== null);
-  // 시각적 자리(점: 역 주변, 화살표: 구간 가운데 묶음)가 겹치는 열차는 아랫줄로 내린다.
-  const lanes = assignLanes(
-    placed.map(({ pos }) =>
-      pos.kind === 'station'
-        ? { start: pos.left - 8, end: pos.left + 8 }
-        : { start: pos.left + pos.width / 2 - 10, end: pos.left + pos.width / 2 + 10 },
-    ),
-  );
-  const onTrack: OnTrackTrain[] = placed.map((p, i) => ({ ...p, lane: lanes[i] }));
-  // 트랙보다 먼 열차(지나간 열차는 제외) 중 가장 가까운 것 — "다음 열차"로 안내한다.
-  const nextOffTrack = positioned.find((p) => p.pos === null && !p.passed);
+export function DirectionPanel({ stations, selected, block, nowMs, flip = false }: Props) {
+  const { track, placed, nextOffTrack } = layoutDirection(stations, selected, block, nowMs);
+  const groups = groupMarks(placed);
+  const slots = arrivalSlots(placed, nextOffTrack, selected.name);
 
   return (
     <section className="direction-panel">
-      <h2 className="direction-panel__title">{block.directionName}</h2>
+      <h2 className="direction-panel__title">
+        {flip ? (
+          <>
+            <span className="direction-panel__dir" aria-hidden="true">
+              ←
+            </span>
+            {block.directionName}
+          </>
+        ) : (
+          <>
+            {block.directionName}
+            <span className="direction-panel__dir" aria-hidden="true">
+              →
+            </span>
+          </>
+        )}
+      </h2>
 
-      <LineTrack track={track} trains={onTrack} selected={selected} />
+      <ArrivalRow slots={slots} />
+
+      <TrackLine track={track} selected={selected} groups={groups} flip={flip} />
 
       {block.trains.length === 0 && <EmptyNotice schedule={block.nextSchedule} />}
-
-      {nextOffTrack && (
-        <p className="direction-panel__next">다음 열차 {formatRemaining(nextOffTrack.remaining)}</p>
-      )}
     </section>
   );
 }

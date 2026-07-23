@@ -1,5 +1,4 @@
 import type { Train } from '../types/subway';
-import { leftPercentFromGaps } from './virtualTrain';
 
 /**
  * 이산 배치 모델 — API가 확실히 아는 것만 그린다.
@@ -38,7 +37,12 @@ export function trainPlacement(train: Train): Placement {
 /** 배치가 구간일 때 위상별 순서(출발 0 → 운행 1 → 진입 2). */
 const PHASE_INDEX: Record<SegmentPhase, number> = { depart: 0, run: 1, arrive: 2 };
 
-/** 구간의 해당 ⅓을 트랙 좌표로 — 시작 left(%)와 폭(%). 트랙 밖이면 null. */
+/**
+ * 구간의 해당 ⅓을 트랙 좌표로 — 시작 left(%)와 폭(%). 트랙 밖이면 null.
+ *
+ * 구간 시작이 트랙 왼쪽 밖이어도(트랙 끝 역에 진입 중인 열차) 위상이 트랙에 걸치면
+ * 가장자리에 잘려서 보여준다 — 열차가 화면 밖에서 갑자기 튀어나오지 않게.
+ */
 export function segmentPercents(
   maxGaps: number,
   fromGap: number,
@@ -46,11 +50,16 @@ export function segmentPercents(
   phase: SegmentPhase,
 ): { left: number; width: number } | null {
   if (maxGaps <= 0) return null;
-  const left = leftPercentFromGaps(maxGaps, fromGap);
-  const right = leftPercentFromGaps(maxGaps, toGap);
-  if (left === null || right === null) return null;
-  const third = (right - left) / 3;
-  return { left: left + PHASE_INDEX[phase] * third, width: third };
+  const rawLeft = (1 - fromGap / maxGaps) * 100;
+  const rawRight = (1 - toGap / maxGaps) * 100;
+  if (rawRight < 0 || rawLeft > 100) return null;
+
+  const third = (rawRight - rawLeft) / 3;
+  const start = rawLeft + PHASE_INDEX[phase] * third;
+  if (start + third <= 0) return null; // 이 위상은 아직 트랙 밖이다
+
+  const left = Math.max(0, start);
+  return { left, width: start + third - left };
 }
 
 /**

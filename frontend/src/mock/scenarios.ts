@@ -212,6 +212,84 @@ export const SCENARIOS: Scenario[] = [
     }),
   },
 
+  // ── 급행 (색으로 구분) ─────────────────────────────────────
+  {
+    id: '급행-이동',
+    label: '급행 이동 중 — 전전역→전역 (빨강)',
+    group: '급행',
+    build: (base) => ({
+      up: [
+        train({
+          trainId: 'M급행1',
+          trainType: 'EXPRESS',
+          currentStation: st('염창'),
+          status: 'TRAVELING',
+          stationsAway: 2,
+          remainingSeconds: 190,
+          segmentStartedAtMs: base - 25_000,
+          floorSeconds: 85,
+        }),
+      ],
+    }),
+  },
+  {
+    id: '급행-정차',
+    label: '급행 정차 — 전역(염창)에 서 있음',
+    group: '급행',
+    build: (base) => ({
+      up: [
+        train({
+          trainId: 'M급행2',
+          trainType: 'EXPRESS',
+          currentStation: st('등촌'),
+          status: 'ARRIVED',
+          stationsAway: 1,
+          remainingSeconds: 70,
+          segmentStartedAtMs: base - 25_000,
+          floorSeconds: 19,
+        }),
+      ],
+    }),
+  },
+  {
+    id: '급행-곧도착',
+    label: '급행 내 역 진입 — "곧 도착"',
+    group: '급행',
+    build: (base) => ({
+      up: [
+        train({
+          trainId: 'M급행3',
+          trainType: 'EXPRESS',
+          currentStation: st('증미'),
+          status: 'APPROACHING',
+          stationsAway: 0,
+          remainingSeconds: 18,
+          segmentStartedAtMs: base - 4_000,
+          floorSeconds: 0,
+        }),
+      ],
+    }),
+  },
+  {
+    id: '급행-지연',
+    label: '급행 지연 — 배지 + 빨강',
+    group: '급행',
+    build: (base) => ({
+      down: [
+        train({
+          trainId: 'M급행4',
+          trainType: 'EXPRESS',
+          currentStation: st('가양'),
+          status: 'TRAVELING',
+          stationsAway: 1,
+          remainingSeconds: 95,
+          segmentStartedAtMs: base - 160_000,
+          floorSeconds: 19,
+        }),
+      ],
+    }),
+  },
+
   // ── 겹침 (레인) ────────────────────────────────────────────
   {
     id: '겹침-구간',

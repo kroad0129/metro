@@ -10,18 +10,16 @@ const DEFAULT_IDS = ['이동-전역', '정차-전역', '하행-세트'];
 
 /**
  * 목업 모드 (`?mock`) — 실호출 없이 가짜 데이터로 화면 상태를 조합해 본다.
- * 매번 API를 불러가며 상황이 오길 기다리는 대신, 정차·진입·출발·지연·겹침·심야까지
- * 체크박스로 켜고 끈다. 시간은 페이지를 연 시각 기준으로 실제처럼 흐른다.
+ *
+ * 실제 화면과 **같은 컴포넌트**(DirectionPanel 이하)를 쓰므로, 여기서 검수한 모양이
+ * 그대로 실화면이다. 정차·진입·출발·이동·겹침·급행·심야까지 체크박스로 만들어 볼 수 있다.
  */
 export function MockPage() {
   const [baseMs] = useState(() => Date.now());
   const [selected, setSelected] = useState<Set<string>>(() => new Set(DEFAULT_IDS));
   const nowMs = useNow();
 
-  const { up, down } = useMemo(
-    () => combineScenarios([...selected], baseMs),
-    [selected, baseMs],
-  );
+  const { up, down } = useMemo(() => combineScenarios([...selected], baseMs), [selected, baseMs]);
 
   const groups = useMemo(() => {
     const byGroup = new Map<string, typeof SCENARIOS>();
@@ -42,6 +40,8 @@ export function MockPage() {
     });
   }
 
+  const common = { stations: MOCK_STATIONS, selected: MOCK_SELECTED, nowMs };
+
   return (
     <main className="app mock-page">
       <header className="mock-page__header">
@@ -50,9 +50,6 @@ export function MockPage() {
           가짜 데이터로 화면 상태를 조합합니다. API 호출 없음 — 실제 화면은 주소에서{' '}
           <code>?mock</code>을 빼면 됩니다.
         </p>
-        <button type="button" className="mock-page__clear" onClick={() => setSelected(new Set())}>
-          모두 해제
-        </button>
       </header>
 
       <div className="mock-page__scenarios">
@@ -61,21 +58,20 @@ export function MockPage() {
             <legend>{group}</legend>
             {scenarios.map((s) => (
               <label key={s.id} className="mock-page__option">
-                <input
-                  type="checkbox"
-                  checked={selected.has(s.id)}
-                  onChange={() => toggle(s.id)}
-                />
+                <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} />
                 {s.label}
               </label>
             ))}
           </fieldset>
         ))}
+        <button type="button" className="mock-page__clear" onClick={() => setSelected(new Set())}>
+          모두 해제
+        </button>
       </div>
 
       <div className="app__directions">
-        <DirectionPanel stations={MOCK_STATIONS} selected={MOCK_SELECTED} block={up} nowMs={nowMs} />
-        <DirectionPanel stations={MOCK_STATIONS} selected={MOCK_SELECTED} block={down} nowMs={nowMs} />
+        <DirectionPanel {...common} block={up} />
+        <DirectionPanel {...common} block={down} flip />
       </div>
     </main>
   );
