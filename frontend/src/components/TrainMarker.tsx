@@ -7,6 +7,8 @@ type Props = {
   leftPercent: number;
   /** 가상 열차 모델의 남은 시간(초). 점 위치와 같은 모델에서 나와 서로 모순되지 않는다. */
   remainingSeconds: number | null;
+  /** 운영사 추정 소요를 넘겨 같은 구간에 머무는 중 — 멈춘 점이 버그가 아님을 알린다. */
+  delayed: boolean;
   showExpressBadge: boolean;
   /** 트랙 오른쪽 끝에 고정된 선택역 이름 — 내 역 도착 판단과 aria-label에 쓴다. */
   selectedStationName: string;
@@ -16,6 +18,7 @@ export function TrainMarker({
   train,
   leftPercent,
   remainingSeconds,
+  delayed,
   showExpressBadge,
   selectedStationName,
 }: Props) {
@@ -29,9 +32,10 @@ export function TrainMarker({
   const typeClass = train.trainType === 'EXPRESS' ? 'train-marker--express' : 'train-marker--local';
   const timeAria =
     timeText === '곧 도착' || timeText === '도착' || timeText === '—' ? timeText : `${timeText} 후`;
-  const ariaLabel = stopLabel
+  const base = stopLabel
     ? `${selectedStationName} 방향, ${stopLabel}, ${timeAria}`
     : `${selectedStationName} 방향, ${timeAria}`;
+  const ariaLabel = delayed ? `${base}, 지연 중` : base;
 
   return (
     <div
@@ -52,6 +56,7 @@ export function TrainMarker({
         </span>
       </span>
       <span className="train-marker__time">{timeText}</span>
+      {delayed && <span className="train-marker__delay">지연</span>}
       {showExpressBadge && <span className="train-marker__badge">급행</span>}
     </div>
   );

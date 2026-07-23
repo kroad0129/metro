@@ -22,6 +22,7 @@ describe('TrainMarker', () => {
       <TrainMarker
         train={train}
         leftPercent={50}
+        delayed={false}
         remainingSeconds={110}
         showExpressBadge={false}
         selectedStationName="증미"
@@ -38,6 +39,7 @@ describe('TrainMarker', () => {
       <TrainMarker
         train={train}
         leftPercent={50}
+        delayed={false}
         remainingSeconds={110}
         showExpressBadge={false}
         selectedStationName="증미"
@@ -51,6 +53,7 @@ describe('TrainMarker', () => {
       <TrainMarker
         train={train}
         leftPercent={50}
+        delayed={false}
         remainingSeconds={110}
         showExpressBadge={false}
         selectedStationName="증미"
@@ -65,6 +68,7 @@ describe('TrainMarker', () => {
       <TrainMarker
         train={{ ...train, status: 'ARRIVED' }}
         leftPercent={50}
+        delayed={false}
         remainingSeconds={110}
         showExpressBadge={false}
         selectedStationName="증미"
@@ -79,6 +83,7 @@ describe('TrainMarker', () => {
       <TrainMarker
         train={{ ...train, currentStation: 내역, status: 'APPROACHING' }}
         leftPercent={95}
+        delayed={false}
         remainingSeconds={12}
         showExpressBadge={false}
         selectedStationName="증미"
@@ -93,6 +98,7 @@ describe('TrainMarker', () => {
       <TrainMarker
         train={{ ...train, currentStation: 내역, status: 'ARRIVED' }}
         leftPercent={100}
+        delayed={false}
         remainingSeconds={0}
         showExpressBadge={false}
         selectedStationName="증미"
@@ -106,6 +112,7 @@ describe('TrainMarker', () => {
       <TrainMarker
         train={train}
         leftPercent={50}
+        delayed={false}
         remainingSeconds={110}
         showExpressBadge={false}
         selectedStationName="증미"
@@ -117,6 +124,7 @@ describe('TrainMarker', () => {
       <TrainMarker
         train={{ ...train, trainType: 'EXPRESS' }}
         leftPercent={50}
+        delayed={false}
         remainingSeconds={110}
         showExpressBadge={true}
         selectedStationName="증미"
@@ -125,11 +133,27 @@ describe('TrainMarker', () => {
     expect(screen.getByTestId('train-marker')).toHaveClass('train-marker--express');
   });
 
+  it('지연 중이면 "지연" 표시를 붙인다 — 멈춘 점이 버그가 아님을 알린다', () => {
+    render(
+      <TrainMarker
+        train={train}
+        leftPercent={50}
+        delayed={true}
+        remainingSeconds={110}
+        showExpressBadge={false}
+        selectedStationName="증미"
+      />,
+    );
+    expect(screen.getByText('지연')).toBeInTheDocument();
+    expect(screen.getByTestId('train-marker').getAttribute('aria-label')).toContain('지연 중');
+  });
+
   it('aria-label에 선택한 역 이름과 남은 시간이 포함된다', () => {
     render(
       <TrainMarker
         train={train}
         leftPercent={50}
+        delayed={false}
         remainingSeconds={110}
         showExpressBadge={false}
         selectedStationName="증미"

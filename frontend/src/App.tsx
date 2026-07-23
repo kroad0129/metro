@@ -62,11 +62,17 @@ export default function App() {
 
       {selected && data?.stale && <StaleBanner updatedAt={data.updatedAt} />}
 
-      {selected && error && <ErrorView error={error} onRetry={refresh} />}
+      {/* 데이터가 아예 없을 때만 오류 화면. 있으면 화면을 유지하고 배너로만 알린다 —
+          일시적 폴링 실패로 화면이 통째로 사라졌다 돌아오지 않게. */}
+      {selected && error && !data && <ErrorView error={error} onRetry={refresh} />}
+
+      {selected && error && data && (
+        <p className="status status--warn">갱신에 실패했어요 — 마지막 정보를 표시하고 있어요</p>
+      )}
 
       {selected && !error && !data && loading && <LoadingView />}
 
-      {selected && !error && data && (
+      {selected && data && (
         <div className="app__directions">
           {data.directions.map((block) => (
             <DirectionPanel

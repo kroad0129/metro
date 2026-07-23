@@ -73,6 +73,17 @@ body {
   text-align: left;
 }
 
+/* 일시적 갱신 실패 — 화면은 유지한 채 조용히 알린다. */
+.status--warn {
+  margin: 0 0.75rem 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #fdeaea;
+  border-radius: 0.4rem;
+  color: #8a1f1f;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
 .refresh-bar {
   display: flex;
   align-items: center;

@@ -21,11 +21,17 @@ export type Train = {
   /** remainingSeconds가 산출된 시각(ISO). */
   recptnAt: string | null;
   /**
-   * 이 열차가 지금 구간(= 현재 stationsAway)에 들어온 시각(ms). useTrainData가 거리 변화를
+   * 이 열차가 지금 구간(= 현재 stationsAway)에 들어온 시각(ms). segmentTracker가 거리 변화를
    * 관측해 채운다. barvlDt는 구간 진입 시점 값 그대로라, 카운트다운은 recptnAt이 아니라
-   * 이 시각을 기준으로 해야 한다. 백엔드 응답에는 없다.
+   * 이 시각을 기준으로 해야 한다. 백엔드 응답에는 없다(이하 세 필드도 마찬가지).
    */
   segmentStartedAtMs?: number;
+  /** 카운트다운 바닥 — 다음 구간에 들어설 때 barvlDt가 될 값(페이스 테이블에서 학습). */
+  floorSeconds?: number;
+  /** 이 구간에서 움직이기 시작한 시각(ms). 정차 중이면 없다. */
+  moveStartMs?: number;
+  /** 움직이기 시작한 순간의 남은 시간(초). 점 이동 진행률의 시작점. */
+  moveStartRemainingSeconds?: number;
 };
 
 export type DirectionBlock = {

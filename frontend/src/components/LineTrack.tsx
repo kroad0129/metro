@@ -4,7 +4,7 @@ import { TrainMarker } from './TrainMarker';
 type Props = {
   track: Station[];
   /** 가상 위치·남은 시간이 계산된 트랙 안의 열차들. */
-  trains: { train: Train; remaining: number | null; left: number }[];
+  trains: { train: Train; remaining: number | null; left: number; delayed: boolean }[];
   selected: Station;
 };
 
@@ -35,12 +35,13 @@ export function LineTrack({ track, trains, selected }: Props) {
       </div>
 
       <div className="line-track__trains">
-        {trains.map(({ train, remaining, left }) => (
+        {trains.map(({ train, remaining, left, delayed }) => (
           <TrainMarker
             key={train.trainId}
             train={train}
             leftPercent={left}
             remainingSeconds={remaining}
+            delayed={delayed}
             showExpressBadge={train.trainType === 'EXPRESS'}
             selectedStationName={selected.name}
           />

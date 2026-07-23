@@ -1,6 +1,12 @@
 import type { DirectionBlock, Station, Train } from '../types/subway';
 import { buildTrack, formatRemaining } from '../utils/trackPosition';
-import { leftPercentFromGaps, liveRemainingSeconds, virtualGaps } from '../utils/virtualTrain';
+import {
+  DELAY_NOTICE_SECONDS,
+  leftPercentFromGaps,
+  liveRemainingSeconds,
+  stallSeconds,
+  virtualGaps,
+} from '../utils/virtualTrain';
 import { LineTrack } from './LineTrack';
 import './DirectionPanel.css';
 
@@ -23,6 +29,7 @@ export function DirectionPanel({ stations, selected, block, nowMs }: Props) {
       gaps,
       remaining: liveRemainingSeconds(train, nowMs),
       left: gaps === null ? null : leftPercentFromGaps(maxGaps, gaps),
+      delayed: stallSeconds(train, nowMs) > DELAY_NOTICE_SECONDS,
     };
   });
 
@@ -30,6 +37,7 @@ export function DirectionPanel({ stations, selected, block, nowMs }: Props) {
     train: Train;
     remaining: number | null;
     left: number;
+    delayed: boolean;
   }[];
   // 트랙보다 먼 열차(지나간 열차는 제외) 중 가장 가까운 것 — "다음 열차"로 안내한다.
   const nextOffTrack = positioned.find((p) => p.left === null && (p.gaps ?? 1) > 0);

@@ -82,7 +82,9 @@ describe('useTrainData', () => {
 
   it('거리가 그대로면 구간 기준 시각을 유지하고, 거리가 줄면 새로 잡는다', async () => {
     // barvlDt는 구간 내내 얼어 있으므로, 기준을 매 폴링마다 다시 잡으면 카운트다운이 리셋된다.
-    const at = (stationsAway: number, recptnAt: string) => ({
+    // 실제 API처럼 거리별 barvlDt가 다르다(d=2→225, d=1→95). 같게 두면 연속성 클램프가
+    // 백데이트한 기준이 우연히 이전 기준과 일치해 이 테스트가 아무것도 검증하지 못한다.
+    const at = (stationsAway: number, recptnAt: string, remainingSeconds = 225) => ({
       ...response,
       directions: [
         {
@@ -93,7 +95,7 @@ describe('useTrainData', () => {
               trainId: '9125',
               trainType: 'LOCAL' as const,
               currentStation: { stationId: '1009000909', name: '등촌', order: 9, isExpressStop: false },
-              remainingSeconds: 225,
+              remainingSeconds,
               status: 'TRAVELING' as const,
               positionRatio: 0.5,
               stationsAway,
@@ -107,7 +109,7 @@ describe('useTrainData', () => {
       .spyOn(api, 'getTrains')
       .mockResolvedValueOnce(at(2, '2026-07-23T13:57:02+09:00'))
       .mockResolvedValueOnce(at(2, '2026-07-23T13:57:30+09:00')) // recptnAt만 갱신
-      .mockResolvedValue(at(1, '2026-07-23T13:58:00+09:00')); // 한 정거장 전진
+      .mockResolvedValue(at(1, '2026-07-23T13:58:00+09:00', 95)); // 한 정거장 전진
 
     const { result } = renderHook(() => useTrainData('1009000908', 15000));
     await waitFor(() => expect(result.current.data).not.toBeNull());
@@ -124,6 +126,9 @@ describe('useTrainData', () => {
       vi.advanceTimersByTime(15000);
     });
     await waitFor(() => expect(spy).toHaveBeenCalledTimes(3));
+    // 세 번째 응답(d=1)이 화면에 반영될 때까지 기다린 뒤 확인한다 — 호출 횟수만 기다리면
+    // 응답 처리(마이크로태스크)가 아직 안 끝났을 수 있다.
+    await waitFor(() => expect(result.current.data?.directions[0].trains[0].stationsAway).toBe(1));
     // 거리가 줄면 새 구간 — 기준을 다시 잡는다
     expect(result.current.data?.directions[0].trains[0].segmentStartedAtMs).not.toBe(first);
   });
@@ -198,6 +203,20 @@ describe('useTrainData', () => {
     const { result } = renderHook(() => useTrainData('1009000908'));
     await waitFor(() => expect(result.current.error?.code).toBe('UPSTREAM_UNAVAILABLE'));
     expect(result.current.data).toBeNull();
+  });
+
+  it('성공한 뒤 폴링이 실패해도 화면 데이터는 지우지 않는다', async () => {
+    vi.spyOn(api, 'getTrains')
+      .mockResolvedValueOnce(response)
+      .mockRejectedValue(new ApiError('UPSTREAM_UNAVAILABLE', '실패'));
+    const { result } = renderHook(() => useTrainData('1009000908', 15000));
+    await waitFor(() => expect(result.current.data).not.toBeNull());
+
+    await act(async () => {
+      vi.advanceTimersByTime(15000);
+    });
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    expect(result.current.data).not.toBeNull(); // 마지막 데이터 유지 — 화면이 통째로 사라지지 않는다
   });
 
   it('오류 후 성공하면 error를 지운다', async () => {

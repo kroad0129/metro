@@ -110,6 +110,50 @@ describe('virtualGaps', () => {
     expect(virtualGaps(정차, t0 + 999_000)).toBe(3);
   });
 
+  it('전역 진입(APPROACHING, d>0) 중에도 그 역에 붙는다 — 도착 직전 미세 이동은 그리지 않는다', () => {
+    const 진입 = train({ status: 'APPROACHING', stationsAway: 1, remainingSeconds: 95 });
+    expect(virtualGaps(진입, t0 + 60_000)).toBe(1);
+  });
+
+  it('출발이 관측되면 그 순간의 남은 시간부터 이동한다 — 정차 중 소모된 진행률로 점이 뛰지 않는다', () => {
+    // 전역(d=1) barvlDt 95. 30초 정차 후 출발 관측: moveStart 시점 live = 65.
+    const 출발 = train({
+      status: 'DEPARTED',
+      stationsAway: 1,
+      remainingSeconds: 95,
+      moveStartMs: t0 + 30_000,
+      moveStartRemainingSeconds: 65,
+      floorSeconds: 19,
+    });
+    // 출발 관측 직후: live=65 = moveStart값 → 진행률 0 → 아직 역(gap 1)에 있다
+    expect(virtualGaps(출발, t0 + 30_000)).toBe(1);
+    // 이후 절반(65→42) 지나면 절반쯤 전진
+    const mid = virtualGaps(출발, t0 + 53_000);
+    expect(mid).toBeLessThan(1);
+    expect(mid).toBeGreaterThan(0.08);
+  });
+
+  it('내 역 진입(d=0)은 코앞에서 문 앞으로 짧게 다가간다', () => {
+    const 진입 = train({ status: 'APPROACHING', stationsAway: 0, remainingSeconds: 20, floorSeconds: 0 });
+    const at0 = virtualGaps(진입, t0);
+    const at15 = virtualGaps(진입, t0 + 15_000);
+    expect(at0).toBeCloseTo(0.08);
+    expect(at15).toBeLessThan(at0!);
+    expect(at15).toBeGreaterThanOrEqual(0.02);
+  });
+
+  it('내 역을 출발(d=0, DEPARTED)한 열차는 음수 — 그리지 않는다', () => {
+    const 통과 = train({ status: 'DEPARTED', stationsAway: 0 });
+    expect(virtualGaps(통과, t0)).toBe(-1);
+    expect(leftPercentFromGaps(2, -1)).toBeNull();
+  });
+
+  it('학습된 floorSeconds가 있으면 균등 분배 대신 그걸 쓴다', () => {
+    // 균등이면 floor=230이지만 학습값 225를 쓰면 span이 실제 구간과 맞는다
+    const learned = train({ floorSeconds: 225 });
+    expect(liveRemainingSeconds(learned, t0 + 999_000)).toBe(225);
+  });
+
   it('거리를 모르면 null이다 — 그리지 않는다', () => {
     expect(virtualGaps(train({ stationsAway: null }), t0)).toBeNull();
   });
