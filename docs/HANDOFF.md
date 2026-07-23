@@ -55,6 +55,7 @@
 | `frontend/src/utils/paceTable.ts` | barvlDt 조회표 학습(localStorage) — 카운트다운 바닥 |
 | `frontend/src/utils/virtualTrain.replay.test.ts` | 실녹화 6분 재생 검증 — 모델의 안전망 |
 | `frontend/src/components/TrainFlow.tsx` | 이동 중 구간의 흐르는 화살표 표시 |
+| `frontend/src/mock/` | 목업 모드(`?mock`) — 실호출 없이 시나리오 조합으로 UI 검수 |
 | `backend/src/trains/timetable.service.ts` | 심야·막차 시간표 안내 |
 | `backend/src/seoul-api/seoul-api.mapper.ts` | ordkey 거리·recptnDt 추출 포함 |
 

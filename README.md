@@ -50,13 +50,15 @@ cd frontend && npm install && npm run dev         # :5173
 
 http://localhost:5173 접속. Vite 개발 서버가 `/api`를 백엔드로 프록시한다.
 
+**목업 모드**: http://localhost:5173/?mock — API 호출 없이 가짜 데이터로 화면 상태(정차·진입·출발·지연·겹침·심야 안내 등)를 체크박스로 조합해 본다. UI 작업할 때 실제 열차 상황을 기다리거나 호출량을 쓸 필요가 없다. 백엔드 없이 프론트만 켜도 된다.
+
 > 개발 모드에서는 React StrictMode 때문에 첫 진입 시 API가 **2번** 호출된다. 프로덕션 빌드는 1번이다. 하루 1000회 예산을 쓰는 중이라면 켜둔 채 방치하지 말 것.
 
 ## 테스트
 
 ```bash
 cd backend  && npx jest && npx jest --config test/jest-e2e.json   # 127 + 5
-cd frontend && npm test                                            # 146
+cd frontend && npm test                                            # 158
 ```
 
 외부 API를 실제로 호출하는 테스트는 없다. `backend/test/fixtures/real/`에 실제 응답을 캡처해 두고 그걸로 검증한다. 프론트에는 실제 API를 6분간 녹화한 데이터를 모델에 그대로 통과시켜 "시간이 늘지 않는다 · 배치가 뒤로 가지 않는다" 같은 약속을 단언하는 **재생 테스트**(`virtualTrain.replay.test.ts`)가 있다.
