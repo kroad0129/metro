@@ -13,6 +13,9 @@ services:
     build: ./frontend
     ports:
       - "80:80"
+    volumes:
+      # 비밀번호 파일은 커밋하지 않는다(.env와 같은 취급). 배포한 곳에서 직접 만든다.
+      - ./htpasswd:/etc/nginx/htpasswd:ro
     depends_on:
       - backend
     restart: unless-stopped
