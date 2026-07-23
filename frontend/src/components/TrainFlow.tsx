@@ -3,9 +3,9 @@ import { formatRemaining } from '../utils/trackPosition';
 
 type Props = {
   train: Train;
-  /** 구간 시작(떠난 역)의 트랙 좌표(%). */
+  /** 이 열차가 차지하는 위상(구간의 ⅓)의 시작 트랙 좌표(%). */
   leftPercent: number;
-  /** 구간 폭(%) — 진행 방향(오른쪽)으로 이만큼이 이 열차의 구간이다. */
+  /** 위상 폭(%) — 구간을 3분할한 한 칸. 출발=앞, 운행=가운데, 진입=끝 칸이다. */
   widthPercent: number;
   /** 가상 열차 모델의 남은 시간(초) — 위치는 몰라도 시간은 매초 흐른다. */
   remainingSeconds: number | null;
@@ -33,11 +33,17 @@ export function TrainFlow({
   selectedStationName,
 }: Props) {
   const typeClass = train.trainType === 'EXPRESS' ? 'train-flow--express' : 'train-flow--local';
-  // 막 출발한 열차는 글자로도 말한다 — 점이 화살표로 바뀐 순간이 "이게 뭔가" 싶지 않게.
+  // 출발·진입은 글자로도 말한다 — 기호와 위치(구간 3분할)만으로 "이게 뭔가" 싶지 않게.
   const justDeparted = train.status === 'DEPARTED';
-  const timeText = formatRemaining(remainingSeconds);
+  const arriving = train.status === 'APPROACHING';
+  const atSelected = train.currentStation.name === selectedStationName;
+
+  const callout = justDeparted ? '출발' : arriving && !atSelected ? '진입' : null;
+  // 내 역 진입은 시간 대신 "곧 도착" — 코앞이라 초는 못 믿으니 문구로(내 역 규칙과 통일).
+  const timeText = arriving && atSelected ? '곧 도착' : formatRemaining(remainingSeconds);
   const timeAria = timeText === '곧 도착' || timeText === '—' ? timeText : `${timeText} 후`;
-  const base = `${selectedStationName} 방향, ${justDeparted ? '방금 출발' : '이동 중'}, ${timeAria}`;
+  const stateAria = justDeparted ? '방금 출발' : arriving ? '진입 중' : '이동 중';
+  const base = `${selectedStationName} 방향, ${stateAria}, ${timeAria}`;
   const ariaLabel = delayed ? `${base}, 지연 중` : base;
 
   return (
@@ -48,13 +54,12 @@ export function TrainFlow({
       style={{ left: `${leftPercent}%`, width: `${widthPercent}%`, '--lane': lane } as React.CSSProperties}
       aria-label={ariaLabel}
     >
-      {justDeparted && (
+      {callout && (
         <span className="train-flow__callout" aria-hidden="true">
-          출발
+          {callout}
         </span>
       )}
       <span className="train-flow__chevrons" aria-hidden="true">
-        <span className="train-flow__chev">›</span>
         <span className="train-flow__chev">›</span>
         <span className="train-flow__chev">›</span>
         <span className="train-flow__chev">›</span>

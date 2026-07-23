@@ -33,8 +33,6 @@ export function TrainMarker({
   const stopLabel = !isSelectedStation && callout ? callout : null;
 
   const typeClass = train.trainType === 'EXPRESS' ? 'train-marker--express' : 'train-marker--local';
-  // 진입 중(곧 도착)은 점을 맥동시켜 "확정 정차"와 눈으로 구분되게 한다.
-  const arrivingClass = train.status === 'APPROACHING' ? ' train-marker--arriving' : '';
   const timeAria =
     timeText === '곧 도착' || timeText === '도착' || timeText === '—' ? timeText : `${timeText} 후`;
   const base = stopLabel
@@ -44,7 +42,7 @@ export function TrainMarker({
 
   return (
     <div
-      className={`train-marker ${typeClass}${arrivingClass}`}
+      className={`train-marker ${typeClass}`}
       data-testid="train-marker"
       data-lane={lane}
       style={{ left: `${leftPercent}%`, '--lane': lane } as React.CSSProperties}

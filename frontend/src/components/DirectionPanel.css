@@ -116,21 +116,6 @@
   --train-color: #c8102e;
 }
 
-/* 진입 중(곧 도착) — 점이 조용히 맥동해 "들어오는 중"임을 알린다. 확정 정차는 맥동 없음. */
-@keyframes train-marker-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--train-color) 45%, transparent);
-  }
-  55% {
-    box-shadow: 0 0 0 0.4rem color-mix(in srgb, var(--train-color) 0%, transparent);
-  }
-}
-
-.train-marker--arriving .train-marker__dot {
-  animation: train-marker-pulse 1.4s ease-out infinite;
-}
-
 .train-marker__time {
   margin-top: 1.6rem;
   font-size: 0.8rem;
@@ -239,10 +224,6 @@
 
 .train-flow__chev:nth-child(3) {
   animation-delay: 0.36s;
-}
-
-.train-flow__chev:nth-child(4) {
-  animation-delay: 0.54s;
 }
 
 /* 화살표 아래 시간·배지 — TrainMarker의 시간 위치와 같은 높이에 오도록 맞춘다. */

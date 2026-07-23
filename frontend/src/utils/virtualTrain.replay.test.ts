@@ -88,10 +88,16 @@ function toResponse(poll: Poll): TrainsResponse {
   };
 }
 
-/** 배치를 "선택역까지 얼마나 남았나" 축의 숫자로 — 작아질수록 전진. 역=d, 구간=d−0.5. */
+/**
+ * 배치를 "선택역까지 얼마나 남았나" 축의 숫자로 — 작아질수록 전진.
+ * 역 = d, 구간은 3분할 위상의 중앙: 출발 = from−⅙, 운행 = from−½, 진입 = from−⅚.
+ */
+const PHASE_OFFSET = { depart: 1 / 6, run: 3 / 6, arrive: 5 / 6 } as const;
+
 function placementOrder(placement: Placement): number | null {
   if (placement === null) return null;
-  return placement.kind === 'station' ? placement.gap : placement.fromGap - 0.5;
+  if (placement.kind === 'station') return placement.gap;
+  return placement.fromGap - PHASE_OFFSET[placement.phase];
 }
 
 type Sample = { atMs: number; live: number; order: number; parked: boolean; stall: number; seam: boolean };

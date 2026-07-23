@@ -70,6 +70,25 @@ describe('TrainFlow — 이동 중 구간의 흐르는 화살표', () => {
     expect(screen.getByTestId('train-flow').getAttribute('aria-label')).toContain('이동 중');
   });
 
+  it('중간 역에 진입(APPROACHING) 중이면 "진입"을 띄우고 시간은 그대로 보인다', () => {
+    render(flow({ train: { ...train, status: 'APPROACHING', stationsAway: 1 } }));
+    expect(screen.getByText('진입')).toBeInTheDocument();
+    expect(screen.getByText('1분 12초')).toBeInTheDocument();
+    expect(screen.getByTestId('train-flow').getAttribute('aria-label')).toContain('진입 중');
+  });
+
+  it('내 역에 진입 중이면 시간 대신 "곧 도착"을 띄운다', () => {
+    const 내역진입 = {
+      ...train,
+      status: 'APPROACHING' as const,
+      stationsAway: 0,
+      currentStation: { stationId: '8', name: '증미', order: 8, isExpressStop: false },
+    };
+    render(flow({ train: 내역진입, remainingSeconds: 12 }));
+    expect(screen.getByText('곧 도착')).toBeInTheDocument();
+    expect(screen.queryByText('12초')).not.toBeInTheDocument();
+  });
+
   it('aria-label이 이동 중임과 남은 시간을 말해준다', () => {
     render(flow({ train: { ...train, status: 'TRAVELING' } }));
     const label = screen.getByTestId('train-flow').getAttribute('aria-label') ?? '';

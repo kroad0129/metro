@@ -16,46 +16,50 @@ function train(over: Partial<Train> = {}): Train {
   };
 }
 
-describe('trainPlacement — API가 확실히 아는 것만 그린다', () => {
+describe('trainPlacement — API가 확실히 아는 것만 그린다 (구간은 3분할)', () => {
   it('정차(ARRIVED) 중이면 그 역 위에 선다', () => {
     expect(trainPlacement(train({ status: 'ARRIVED', stationsAway: 1 }))).toEqual({
       kind: 'station',
       gap: 1,
-      arriving: false,
     });
     expect(trainPlacement(train({ status: 'ARRIVED', stationsAway: 0 }))).toEqual({
       kind: 'station',
       gap: 0,
-      arriving: false,
     });
   });
 
-  it('진입(APPROACHING) 중이면 그 역 위에 "들어오는 중"으로 선다', () => {
+  it('진입(APPROACHING)은 들어서는 역 직전 — 그 역으로 가는 구간의 마지막 ⅓이다', () => {
+    // 전역 진입: 전전역→전역 구간의 끝자락
     expect(trainPlacement(train({ status: 'APPROACHING', stationsAway: 1 }))).toEqual({
-      kind: 'station',
-      gap: 1,
-      arriving: true,
+      kind: 'segment',
+      fromGap: 2,
+      toGap: 1,
+      phase: 'arrive',
     });
+    // 내 역 진입: 전역→내 역 구간의 끝자락
     expect(trainPlacement(train({ status: 'APPROACHING', stationsAway: 0 }))).toEqual({
-      kind: 'station',
-      gap: 0,
-      arriving: true,
+      kind: 'segment',
+      fromGap: 1,
+      toGap: 0,
+      phase: 'arrive',
     });
   });
 
-  it('역을 출발(DEPARTED)했으면 떠난 역과 다음 역 사이 구간이다', () => {
+  it('출발(DEPARTED)은 떠난 역 직후 — 구간의 첫 ⅓이다', () => {
     expect(trainPlacement(train({ status: 'DEPARTED', stationsAway: 1 }))).toEqual({
       kind: 'segment',
       fromGap: 1,
       toGap: 0,
+      phase: 'depart',
     });
   });
 
-  it('운행중(TRAVELING)이면 보고된 역에서 다음 역으로 가는 구간이다', () => {
+  it('운행중(TRAVELING)은 구간 가운데 ⅓이다', () => {
     expect(trainPlacement(train({ status: 'TRAVELING', stationsAway: 2 }))).toEqual({
       kind: 'segment',
       fromGap: 2,
       toGap: 1,
+      phase: 'run',
     });
   });
 
@@ -65,9 +69,10 @@ describe('trainPlacement — API가 확실히 아는 것만 그린다', () => {
 
   it('운행중인데 d=0인 비정상 조합은 내 역 진입으로 본다 — 열차를 잃지 않는다', () => {
     expect(trainPlacement(train({ status: 'TRAVELING', stationsAway: 0 }))).toEqual({
-      kind: 'station',
-      gap: 0,
-      arriving: true,
+      kind: 'segment',
+      fromGap: 1,
+      toGap: 0,
+      phase: 'arrive',
     });
   });
 
@@ -76,21 +81,28 @@ describe('trainPlacement — API가 확실히 아는 것만 그린다', () => {
   });
 });
 
-describe('segmentPercents — 구간을 트랙 좌표(%)로', () => {
-  it('전역→내 역 구간은 트랙 오른쪽 절반이다 (maxGaps 2)', () => {
-    expect(segmentPercents(2, 1, 0)).toEqual({ left: 50, width: 50 });
+describe('segmentPercents — 구간의 해당 ⅓을 트랙 좌표(%)로', () => {
+  it('전역→내 역 구간(트랙 오른쪽 절반)의 세 위상', () => {
+    // 구간 [50%, 100%]를 3분할: 출발 [50, 66.7), 운행 [66.7, 83.3), 진입 [83.3, 100]
+    const depart = segmentPercents(2, 1, 0, 'depart')!;
+    const run = segmentPercents(2, 1, 0, 'run')!;
+    const arrive = segmentPercents(2, 1, 0, 'arrive')!;
+    expect(depart.left).toBeCloseTo(50);
+    expect(run.left).toBeCloseTo(66.67, 1);
+    expect(arrive.left).toBeCloseTo(83.33, 1);
+    for (const p of [depart, run, arrive]) expect(p.width).toBeCloseTo(16.67, 1);
   });
 
-  it('전전역→전역 구간은 트랙 왼쪽 절반이다', () => {
-    expect(segmentPercents(2, 2, 1)).toEqual({ left: 0, width: 50 });
+  it('전전역→전역 구간은 트랙 왼쪽 절반을 3분할한다', () => {
+    expect(segmentPercents(2, 2, 1, 'run')!.left).toBeCloseTo(16.67, 1);
   });
 
   it('트랙 밖에서 시작하는 구간은 그리지 않는다 — "다음 열차"로 처리된다', () => {
-    expect(segmentPercents(2, 3, 2)).toBeNull();
+    expect(segmentPercents(2, 3, 2, 'run')).toBeNull();
   });
 
   it('역이 하나뿐인 트랙(노선 끝)에는 구간이 없다', () => {
-    expect(segmentPercents(0, 1, 0)).toBeNull();
+    expect(segmentPercents(0, 1, 0, 'run')).toBeNull();
   });
 });
 

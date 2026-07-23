@@ -86,8 +86,8 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: '진입-전역',
-    label: '전역 진입 — 맥동 점 ("진입")',
-    group: '역 위',
+    label: '전역 진입 — 구간 마지막 ⅓ ("진입")',
+    group: '구간 이동',
     build: (base) => ({
       up: [
         train({
@@ -104,8 +104,8 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: '곧도착',
-    label: '내 역 곧 도착 — 시간 대신 문구',
-    group: '역 위',
+    label: '내 역 곧 도착 — 마지막 ⅓ + 문구',
+    group: '구간 이동',
     build: (base) => ({
       up: [
         train({
@@ -139,7 +139,7 @@ export const SCENARIOS: Scenario[] = [
   // ── 구간 이동 (화살표) ─────────────────────────────────────
   {
     id: '막출발',
-    label: '막 출발 — 전역→내 역, "출발" 표시',
+    label: '막 출발 — 구간 첫 ⅓, "출발" 표시',
     group: '구간 이동',
     build: (base) => ({
       up: [

@@ -78,36 +78,6 @@ describe('TrainMarker', () => {
     expect(screen.getByText('1분 50초')).toBeInTheDocument(); // 시간은 그대로 보인다
   });
 
-  it('중간 역에 들어서는 중이면 그 역 위에 "진입"을 띄운다 — 맥동만으로는 안 읽힌다', () => {
-    render(
-      <TrainMarker
-        train={{ ...train, status: 'APPROACHING', stationsAway: 1 }}
-        leftPercent={50}
-        delayed={false}
-        remainingSeconds={40}
-        showExpressBadge={false}
-        selectedStationName="증미"
-      />,
-    );
-    expect(screen.getByText('진입')).toBeInTheDocument();
-    expect(screen.getByText('40초')).toBeInTheDocument();
-  });
-
-  it('내 역에 진입 중이면 시간 대신 "곧 도착"을 띄운다', () => {
-    render(
-      <TrainMarker
-        train={{ ...train, currentStation: 내역, status: 'APPROACHING' }}
-        leftPercent={95}
-        delayed={false}
-        remainingSeconds={12}
-        showExpressBadge={false}
-        selectedStationName="증미"
-      />,
-    );
-    expect(screen.getByText('곧 도착')).toBeInTheDocument();
-    expect(screen.queryByText('12초')).not.toBeInTheDocument();
-  });
-
   it('내 역에 도착하면 시간 대신 "도착"을 띄운다', () => {
     render(
       <TrainMarker
@@ -120,32 +90,6 @@ describe('TrainMarker', () => {
       />,
     );
     expect(screen.getByText('도착')).toBeInTheDocument();
-  });
-
-  it('진입(APPROACHING) 중이면 맥동 클래스가 붙는다 — 확정 정차와 구분된다', () => {
-    const { rerender } = render(
-      <TrainMarker
-        train={{ ...train, status: 'APPROACHING', stationsAway: 1 }}
-        leftPercent={50}
-        delayed={false}
-        remainingSeconds={40}
-        showExpressBadge={false}
-        selectedStationName="증미"
-      />,
-    );
-    expect(screen.getByTestId('train-marker')).toHaveClass('train-marker--arriving');
-
-    rerender(
-      <TrainMarker
-        train={{ ...train, status: 'ARRIVED', stationsAway: 1 }}
-        leftPercent={50}
-        delayed={false}
-        remainingSeconds={40}
-        showExpressBadge={false}
-        selectedStationName="증미"
-      />,
-    );
-    expect(screen.getByTestId('train-marker')).not.toHaveClass('train-marker--arriving');
   });
 
   it('일반 열차는 초록, 급행 열차는 빨강 색상 클래스를 붙인다', () => {

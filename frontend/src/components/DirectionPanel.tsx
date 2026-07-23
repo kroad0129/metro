@@ -30,7 +30,7 @@ export function DirectionPanel({ stations, selected, block, nowMs }: Props) {
       const left = leftPercentFromGaps(maxGaps, placement.gap);
       if (left !== null) pos = { kind: 'station', left };
     } else if (placement?.kind === 'segment') {
-      const seg = segmentPercents(maxGaps, placement.fromGap, placement.toGap);
+      const seg = segmentPercents(maxGaps, placement.fromGap, placement.toGap, placement.phase);
       if (seg) pos = { kind: 'segment', ...seg };
     }
     return {
