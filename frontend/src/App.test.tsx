@@ -76,8 +76,9 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('개화 방면')).toBeInTheDocument());
     expect(screen.getByText('중앙보훈병원 방면')).toBeInTheDocument();
-    // barvlDt 120초를 그대로 카운트다운 시작점으로 → "2분"
-    expect(screen.getByTestId('train-marker')).toHaveTextContent('2분');
+    // 처음 본 열차는 구간 절반쯤 왔다고 보므로 barvlDt(120초)보다 낮게 시작한다.
+    // 정확한 값은 virtualTrain 단위 테스트가 검증하므로 여기선 시간이 뜨는지만 본다.
+    expect(screen.getByTestId('train-marker')).toHaveTextContent(/분|초/);
   });
 
   it('선택한 역을 localStorage에 저장한다', async () => {

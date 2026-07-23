@@ -18,8 +18,14 @@ export type Train = {
   positionRatio: number;
   /** 선택역까지 남은 정거장 수(ordkey에서 추출). 위치의 기준. */
   stationsAway: number | null;
-  /** remainingSeconds가 산출된 시각(ISO). 여기서부터 카운트다운한다(벤더 지침). */
+  /** remainingSeconds가 산출된 시각(ISO). */
   recptnAt: string | null;
+  /**
+   * 이 열차가 지금 구간(= 현재 stationsAway)에 들어온 시각(ms). useTrainData가 거리 변화를
+   * 관측해 채운다. barvlDt는 구간 진입 시점 값 그대로라, 카운트다운은 recptnAt이 아니라
+   * 이 시각을 기준으로 해야 한다. 백엔드 응답에는 없다.
+   */
+  segmentStartedAtMs?: number;
 };
 
 export type DirectionBlock = {

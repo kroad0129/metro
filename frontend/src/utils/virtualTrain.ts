@@ -37,21 +37,22 @@ export function nextStationGaps(stationsAway: number): number {
 
 /**
  * 지금 이 순간의 남은 시간(초).
- * recptnDt 이후 흐른 만큼 빼되(벤더 지침), 다음 역 확인 전에는 그 역 도착 예상치 밑으로
- * 내려가지 않는다. 그래서 지연된 열차는 "역 앞에서 멈춘 카운트다운"으로 보이고,
- * 절대 먼저 도착했다고 거짓말하지 않는다.
+ *
+ * 기준점은 recptnAt(데이터 생성 시각)이 아니라 **구간 진입 시각**(segmentStartedAtMs)이다.
+ * barvlDt는 구간을 지나는 동안 줄지 않으므로, recptnAt이 갱신될 때마다 거기서 다시 빼면
+ * 남은 시간이 도로 늘어난다(실측으로 확인한 버그).
+ *
+ * 다음 역 확인 전에는 그 역 도착 예상치 밑으로 내려가지 않는다. 그래서 지연된 열차는
+ * "역 앞에서 멈춘 카운트다운"으로 보이고, 먼저 도착했다고 거짓말하지 않는다.
  */
 export function liveRemainingSeconds(train: Train, nowMs: number): number | null {
-  const { remainingSeconds, stationsAway, recptnAt } = train;
+  const { remainingSeconds, stationsAway, segmentStartedAtMs } = train;
   if (remainingSeconds === null) return null;
   if (stationsAway === null) return remainingSeconds;
+  if (segmentStartedAtMs === undefined) return remainingSeconds;
 
   const floor = nextStationSeconds(remainingSeconds, stationsAway);
-
-  const baseMs = recptnAt === null ? NaN : Date.parse(recptnAt);
-  if (!Number.isFinite(baseMs)) return remainingSeconds;
-
-  const elapsed = Math.max(0, (nowMs - baseMs) / 1000);
+  const elapsed = Math.max(0, (nowMs - segmentStartedAtMs) / 1000);
   return Math.max(floor, remainingSeconds - elapsed);
 }
 

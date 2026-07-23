@@ -20,6 +20,7 @@ function train(over: Partial<Train> = {}): Train {
     positionRatio: 0.5,
     stationsAway: 3,
     recptnAt,
+    segmentStartedAtMs: t0,
     ...over,
   };
 }
@@ -43,7 +44,7 @@ describe('nextStationSeconds', () => {
 });
 
 describe('liveRemainingSeconds', () => {
-  it('recptnAt 이후 흐른 만큼 뺀다 — 벤더 지침', () => {
+  it('구간 진입 시각 이후 흐른 만큼 뺀다', () => {
     expect(liveRemainingSeconds(train(), t0)).toBe(345);
     expect(liveRemainingSeconds(train(), t0 + 60_000)).toBe(285);
   });
@@ -67,8 +68,19 @@ describe('liveRemainingSeconds', () => {
     expect(liveRemainingSeconds(train({ remainingSeconds: null }), t0)).toBeNull();
   });
 
-  it('recptnAt이 없으면 보정 없이 원값을 쓴다', () => {
-    expect(liveRemainingSeconds(train({ recptnAt: null }), t0 + 60_000)).toBe(345);
+  it('구간 진입 시각을 모르면 보정 없이 원값을 쓴다', () => {
+    expect(liveRemainingSeconds(train({ segmentStartedAtMs: undefined }), t0 + 60_000)).toBe(345);
+  });
+
+  it('recptnAt이 갱신돼도 남은 시간이 도로 늘어나지 않는다 (회귀 방지)', () => {
+    // 서울시는 recptnDt를 10~27초마다 갱신하지만 barvlDt는 구간 내내 그대로다.
+    // 기준을 recptnAt으로 잡으면 갱신될 때마다 카운트다운이 리셋된다.
+    const before = liveRemainingSeconds(train(), t0 + 30_000);
+    const afterRecptnBumped = liveRemainingSeconds(
+      train({ recptnAt: '2026-07-23T13:57:30+09:00' }),
+      t0 + 40_000,
+    );
+    expect(afterRecptnBumped!).toBeLessThan(before!);
   });
 });
 

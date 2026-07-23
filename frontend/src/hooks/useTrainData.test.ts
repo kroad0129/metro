@@ -80,6 +80,54 @@ describe('useTrainData', () => {
     expect(train?.stationsAway).toBe(1);
   });
 
+  it('거리가 그대로면 구간 기준 시각을 유지하고, 거리가 줄면 새로 잡는다', async () => {
+    // barvlDt는 구간 내내 얼어 있으므로, 기준을 매 폴링마다 다시 잡으면 카운트다운이 리셋된다.
+    const at = (stationsAway: number, recptnAt: string) => ({
+      ...response,
+      directions: [
+        {
+          directionId: 'UP' as const,
+          directionName: '개화 방면',
+          trains: [
+            {
+              trainId: '9125',
+              trainType: 'LOCAL' as const,
+              currentStation: { stationId: '1009000909', name: '등촌', order: 9, isExpressStop: false },
+              remainingSeconds: 225,
+              status: 'TRAVELING' as const,
+              positionRatio: 0.5,
+              stationsAway,
+              recptnAt,
+            },
+          ],
+        },
+      ],
+    });
+    const spy = vi
+      .spyOn(api, 'getTrains')
+      .mockResolvedValueOnce(at(2, '2026-07-23T13:57:02+09:00'))
+      .mockResolvedValueOnce(at(2, '2026-07-23T13:57:30+09:00')) // recptnAt만 갱신
+      .mockResolvedValue(at(1, '2026-07-23T13:58:00+09:00')); // 한 정거장 전진
+
+    const { result } = renderHook(() => useTrainData('1009000908', 15000));
+    await waitFor(() => expect(result.current.data).not.toBeNull());
+    const first = result.current.data?.directions[0].trains[0].segmentStartedAtMs;
+
+    await act(async () => {
+      vi.advanceTimersByTime(15000);
+    });
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(2));
+    // recptnAt이 앞으로 갔어도 같은 구간이면 기준은 그대로여야 한다
+    expect(result.current.data?.directions[0].trains[0].segmentStartedAtMs).toBe(first);
+
+    await act(async () => {
+      vi.advanceTimersByTime(15000);
+    });
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(3));
+    // 거리가 줄면 새 구간 — 기준을 다시 잡는다
+    expect(result.current.data?.directions[0].trains[0].segmentStartedAtMs).not.toBe(first);
+  });
+
   it('pollMs를 주면 그 간격으로 자동 폴링한다', async () => {
     const spy = vi.spyOn(api, 'getTrains').mockResolvedValue(response);
     renderHook(() => useTrainData('1009000908', 15000));

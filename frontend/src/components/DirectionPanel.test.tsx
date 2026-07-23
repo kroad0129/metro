@@ -26,6 +26,7 @@ function train(over: Partial<Train> = {}): Train {
     positionRatio: 0.5,
     stationsAway: 1, // 전역
     recptnAt,
+    segmentStartedAtMs: now, // 방금 이 구간에 들어왔다
     ...over,
   };
 }
