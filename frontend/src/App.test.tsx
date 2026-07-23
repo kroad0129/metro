@@ -74,7 +74,8 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('개화 방면')).toBeInTheDocument());
     expect(screen.getByText('중앙보훈병원 방면')).toBeInTheDocument();
-    expect(screen.getByTestId('train-marker')).toHaveTextContent('2분');
+    // 전역(1정거장) × 110초 가상 모델 → "1분 50초"
+    expect(screen.getByTestId('train-marker')).toHaveTextContent('1분 50초');
   });
 
   it('선택한 역을 localStorage에 저장한다', async () => {

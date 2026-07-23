@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Station, Train } from '../types/subway';
-import { buildTrack, formatRemaining, remainingAt, trainLeftPercent, TRACK_SPAN } from './trackPosition';
+import type { Station, Train, TrainStatus } from '../types/subway';
+import { buildTrack, formatRemaining, trainCallout, TRACK_SPAN } from './trackPosition';
 
 const stations: Station[] = Array.from({ length: 38 }, (_, i) => ({
   stationId: `${1009000900 + i + 1}`,
@@ -9,34 +9,38 @@ const stations: Station[] = Array.from({ length: 38 }, (_, i) => ({
   isExpressStop: false,
 }));
 
-const 증미 = stations[7];   // order 8
-const 개화 = stations[0];   // order 1
+const 증미 = stations[7]; // order 8
+const 개화 = stations[0]; // order 1
 const 중앙보훈병원 = stations[37]; // order 38
 
-function trainAt(station: Station, positionRatio: number): Train {
+function trainAt(
+  station: Station,
+  remainingSeconds: number | null,
+  status: TrainStatus = 'TRAVELING',
+): Train {
   return {
     trainId: 'T',
     trainType: 'LOCAL',
     currentStation: station,
-    remainingSeconds: 120,
-    status: 'TRAVELING',
-    positionRatio,
+    remainingSeconds,
+    status,
+    positionRatio: 0.5,
   };
 }
 
 describe('buildTrack', () => {
-  it('기본 구간 길이는 4다', () => {
-    expect(TRACK_SPAN).toBe(4);
+  it('기본 구간 길이는 2다', () => {
+    expect(TRACK_SPAN).toBe(2);
   });
 
   it('UP 방향은 order가 큰 역에서 시작해 선택역으로 끝난다', () => {
     const track = buildTrack(stations, 증미, 'UP');
-    expect(track.map((s) => s.order)).toEqual([12, 11, 10, 9, 8]);
+    expect(track.map((s) => s.order)).toEqual([10, 9, 8]);
   });
 
   it('DOWN 방향은 order가 작은 역에서 시작해 선택역으로 끝난다', () => {
     const track = buildTrack(stations, 증미, 'DOWN');
-    expect(track.map((s) => s.order)).toEqual([4, 5, 6, 7, 8]);
+    expect(track.map((s) => s.order)).toEqual([6, 7, 8]);
   });
 
   it('두 방향 모두 마지막 원소가 선택한 역이다', () => {
@@ -50,53 +54,28 @@ describe('buildTrack', () => {
   });
 
   it('구간 길이를 조정할 수 있다', () => {
-    expect(buildTrack(stations, 증미, 'UP', 2).map((s) => s.order)).toEqual([10, 9, 8]);
-  });
-});
-
-describe('trainLeftPercent', () => {
-  const track = buildTrack(stations, 증미, 'UP'); // [12, 11, 10, 9, 8]
-
-  it('트랙 왼쪽 끝의 열차는 0%다', () => {
-    expect(trainLeftPercent(track, trainAt(stations[11], 0))).toBe(0);
-  });
-
-  it('선택역에 도착한 열차는 100%다', () => {
-    expect(trainLeftPercent(track, trainAt(증미, 0))).toBe(100);
-  });
-
-  it('positionRatio만큼 오른쪽으로 이동한다', () => {
-    // index 3(order 9) + 0.5 = 3.5, 트랙 간격 4개 → 87.5%
-    expect(trainLeftPercent(track, trainAt(stations[8], 0.5))).toBe(87.5);
-  });
-
-  it('트랙 밖의 역에 있는 열차는 null이다', () => {
-    expect(trainLeftPercent(track, trainAt(stations[20], 0.5))).toBeNull();
-  });
-
-  it('100%를 넘지 않도록 자른다', () => {
-    expect(trainLeftPercent(track, trainAt(증미, 0.75))).toBe(100);
-  });
-
-  it('역이 하나뿐인 트랙에서는 100%를 반환한다', () => {
-    const single = buildTrack(stations, 개화, 'DOWN');
-    expect(trainLeftPercent(single, trainAt(개화, 0))).toBe(100);
+    expect(buildTrack(stations, 증미, 'UP', 4).map((s) => s.order)).toEqual([12, 11, 10, 9, 8]);
   });
 });
 
 describe('formatRemaining', () => {
-  it('1분 미만은 초로 표시한다', () => {
+  it('분과 초를 함께 보여준다 — 매초 흐르는 게 보이게', () => {
+    expect(formatRemaining(110)).toBe('1분 50초');
+    expect(formatRemaining(220)).toBe('3분 40초');
+    expect(formatRemaining(61)).toBe('1분 1초');
+  });
+
+  it('딱 나누어떨어지는 분은 초를 생략한다', () => {
+    expect(formatRemaining(120)).toBe('2분');
+  });
+
+  it('1분 미만은 초만 보여준다', () => {
     expect(formatRemaining(45)).toBe('45초');
+    expect(formatRemaining(59.4)).toBe('59초');
   });
 
-  it('1분 이상이면서 초가 남으면 분과 초를 함께 표시한다', () => {
-    expect(formatRemaining(385)).toBe('6분 25초');
-    expect(formatRemaining(125)).toBe('2분 5초');
-  });
-
-  it('정확히 나누어떨어지는 분은 초를 생략한다', () => {
-    expect(formatRemaining(60)).toBe('1분');
-    expect(formatRemaining(180)).toBe('3분');
+  it('소수 초는 반올림한다(가상 모델이 실수를 준다)', () => {
+    expect(formatRemaining(93.5)).toBe('1분 34초');
   });
 
   it('알 수 없으면 대시로 표시한다', () => {
@@ -109,31 +88,19 @@ describe('formatRemaining', () => {
   });
 });
 
-describe('remainingAt', () => {
-  const updatedAt = '2026-07-22T14:00:00+09:00';
-  const updatedMs = new Date(updatedAt).getTime();
-
-  it('경과한 만큼 초를 뺀다', () => {
-    expect(remainingAt(120, updatedAt, updatedMs + 25_000)).toBe(95);
+describe('trainCallout', () => {
+  it('정차(ARRIVED) 중이면 어느 역이든 "도착"이다', () => {
+    expect(trainCallout(trainAt(증미, 20, 'ARRIVED'), true)).toBe('도착'); // 내 역
+    expect(trainCallout(trainAt(개화, 95, 'ARRIVED'), false)).toBe('도착'); // 중간 역
   });
 
-  it('1초 미만의 경과는 버림한다', () => {
-    expect(remainingAt(120, updatedAt, updatedMs + 999)).toBe(120);
+  it('내 역에 진입 중이면 "곧 도착"이다', () => {
+    expect(trainCallout(trainAt(증미, 20, 'APPROACHING'), true)).toBe('곧 도착');
   });
 
-  it('0 밑으로는 내려가지 않는다', () => {
-    expect(remainingAt(10, updatedAt, updatedMs + 60_000)).toBe(0);
-  });
-
-  it('remainingSeconds가 null이면 null을 반환한다', () => {
-    expect(remainingAt(null, updatedAt, updatedMs)).toBeNull();
-  });
-
-  it('updatedAtIso가 잘못되면 null을 반환한다', () => {
-    expect(remainingAt(120, 'not-a-date', updatedMs)).toBeNull();
-  });
-
-  it('시계 오차로 now가 더 이르면 경과를 0으로 취급한다', () => {
-    expect(remainingAt(120, updatedAt, updatedMs - 5_000)).toBe(120);
+  it('그 외(운행·출발, 남의 역 진입)에는 아무것도 표시하지 않는다', () => {
+    expect(trainCallout(trainAt(개화, 95, 'TRAVELING'), false)).toBeNull();
+    expect(trainCallout(trainAt(개화, 95, 'DEPARTED'), false)).toBeNull();
+    expect(trainCallout(trainAt(개화, 95, 'APPROACHING'), false)).toBeNull();
   });
 });

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { DirectionPanel } from './components/DirectionPanel';
 import { RefreshBar } from './components/RefreshBar';
 import { StationSelector } from './components/StationSelector';
@@ -5,14 +6,36 @@ import { ErrorView, LoadingView, StaleBanner } from './components/states/StatusV
 import { useNow } from './hooks/useNow';
 import { useSelectedStation } from './hooks/useSelectedStation';
 import { useStations } from './hooks/useStations';
-import { useTrainData } from './hooks/useTrainData';
+import { POLL_INTERVAL_MS, useTrainData } from './hooks/useTrainData';
 import './App.css';
+
+const AUTO_REFRESH_KEY = 'metro:autoRefresh';
 
 export default function App() {
   const { stations, loading: stationsLoading, error: stationsError } = useStations();
   const { selected, select } = useSelectedStation(stations);
-  const { data, loading, error, refresh, canRefresh } = useTrainData(selected?.stationId ?? null);
-  // 화면 전용 초 단위 틱 — 데이터는 다시 조회하지 않는다(스펙 참고: useTrainData 주석).
+
+  // 자동 갱신(폴링) 여부. 기본은 꺼짐 — 개발키 호출 한도를 아끼고, 켜서 폴링을 시험한다.
+  const [autoRefresh, setAutoRefresh] = useState(() => {
+    try {
+      return localStorage.getItem(AUTO_REFRESH_KEY) === 'on';
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(AUTO_REFRESH_KEY, autoRefresh ? 'on' : 'off');
+    } catch {
+      /* localStorage 불가 환경은 무시 */
+    }
+  }, [autoRefresh]);
+
+  const { data, loading, error, refresh, canRefresh } = useTrainData(
+    selected?.stationId ?? null,
+    autoRefresh ? POLL_INTERVAL_MS : null,
+  );
+  // 화면 전용 초 단위 틱 — 가상 열차 전진과 "N초 전 갱신" 문구용. 데이터는 다시 조회하지 않는다.
   const nowMs = useNow();
 
   if (stationsLoading) {
@@ -52,7 +75,6 @@ export default function App() {
               selected={selected}
               block={block}
               nowMs={nowMs}
-              updatedAt={data.updatedAt}
             />
           ))}
         </div>
@@ -65,6 +87,8 @@ export default function App() {
           canRefresh={canRefresh}
           onRefresh={refresh}
           nowMs={nowMs}
+          autoRefresh={autoRefresh}
+          onToggleAuto={setAutoRefresh}
         />
       )}
     </main>

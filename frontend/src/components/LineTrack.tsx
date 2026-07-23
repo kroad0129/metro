@@ -1,52 +1,51 @@
 import type { Station, Train } from '../types/subway';
-import { trainLeftPercent } from '../utils/trackPosition';
+import { virtualRemainingSeconds } from '../utils/virtualTrain';
 import { TrainMarker } from './TrainMarker';
 
 type Props = {
   track: Station[];
-  trains: Train[];
+  /** 가상 위치가 계산된 트랙 안의 열차들. */
+  trains: { train: Train; gaps: number; left: number }[];
   selected: Station;
-  nowMs: number;
-  updatedAt: string;
 };
 
-export function LineTrack({ track, trains, selected, nowMs, updatedAt }: Props) {
+export function LineTrack({ track, trains, selected }: Props) {
   return (
     <div className="line-track">
       <div className="line-track__rail" aria-hidden="true" />
 
       <div className="line-track__stations">
-        {track.map((station) => (
-          <span
-            key={station.stationId}
-            className={
-              station.stationId === selected.stationId
-                ? 'line-track__station line-track__station--selected'
-                : 'line-track__station'
-            }
-            data-testid="track-station"
-          >
-            {station.name}
-          </span>
-        ))}
+        {track.map((station, index) => {
+          // 역 이름표를 점과 같은 % 좌표에 둔다 — 정차한 점이 이름표 바로 아래 오도록.
+          const left = track.length === 1 ? 100 : (index / (track.length - 1)) * 100;
+          return (
+            <span
+              key={station.stationId}
+              className={
+                station.stationId === selected.stationId
+                  ? 'line-track__station line-track__station--selected'
+                  : 'line-track__station'
+              }
+              style={{ left: `${left}%` }}
+              data-testid="track-station"
+            >
+              {station.name}
+            </span>
+          );
+        })}
       </div>
 
       <div className="line-track__trains">
-        {trains.map((train) => {
-          const left = trainLeftPercent(track, train);
-          if (left === null) return null;
-          return (
-            <TrainMarker
-              key={train.trainId}
-              train={train}
-              leftPercent={left}
-              showExpressBadge={train.trainType === 'EXPRESS'}
-              nowMs={nowMs}
-              updatedAt={updatedAt}
-              selectedStationName={selected.name}
-            />
-          );
-        })}
+        {trains.map(({ train, gaps, left }) => (
+          <TrainMarker
+            key={train.trainId}
+            train={train}
+            leftPercent={left}
+            remainingSeconds={virtualRemainingSeconds(gaps)}
+            showExpressBadge={train.trainType === 'EXPRESS'}
+            selectedStationName={selected.name}
+          />
+        ))}
       </div>
     </div>
   );

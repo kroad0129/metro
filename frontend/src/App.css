@@ -85,6 +85,15 @@ body {
   color: #888;
 }
 
+.refresh-bar__auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: #555;
+  cursor: pointer;
+}
+
 .refresh-bar button {
   margin-top: 0;
 }

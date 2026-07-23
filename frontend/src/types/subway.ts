@@ -16,6 +16,9 @@ export type Train = {
   remainingSeconds: number | null;
   status: TrainStatus;
   positionRatio: number;
+  /** 이 위상(현재역+상태)을 처음 관측한 시각(ms). useTrainData가 폴링마다 채운다 —
+   *  가상 열차 모델(virtualTrain)이 여기서부터 위치를 전진시킨다. 백엔드 응답에는 없다. */
+  anchorSinceMs?: number;
 };
 
 export type DirectionBlock = {

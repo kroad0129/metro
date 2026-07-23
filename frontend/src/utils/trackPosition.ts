@@ -1,7 +1,8 @@
 import type { DirectionId, Station, Train } from '../types/subway';
 
-/** 선택한 역 앞으로 몇 개 역까지 트랙에 그릴지. 역간 1.5~2분이므로 약 8분치 시야다. */
-export const TRACK_SPAN = 4;
+/** 선택한 역 앞으로 몇 개 역까지 트랙에 그릴지. 2 전역까지(약 4분치 시야). 서울시 API가
+ *  정차 상태를 정확히 주는 범위(내 역 + 전역)에 가깝게, 가까운 열차만 또렷이 보여준다. */
+export const TRACK_SPAN = 2;
 
 /**
  * 트랙에 그릴 역들을 왼쪽부터 오른쪽 순서로 만든다.
@@ -28,45 +29,28 @@ export function buildTrack(
 }
 
 /**
- * 트랙 위에서 열차의 left 위치를 퍼센트로 계산한다.
- * 열차가 트랙 범위 밖에 있으면 null — 호출부에서 "다음 열차 N분" 텍스트로 처리한다.
+ * 남은 시간을 사람이 읽는 문자열로. 가상 열차 모델이 매초 전진하므로 초까지 보여준다 —
+ * 시간이 실제로 흐르고 있음이 눈에 보이게. 1분 미만은 초만.
  */
-export function trainLeftPercent(track: Station[], train: Train): number | null {
-  const index = track.findIndex((s) => s.stationId === train.currentStation.stationId);
-  if (index === -1) return null;
-  if (track.length <= 1) return 100;
-
-  const position = index + train.positionRatio;
-  const percent = (position / (track.length - 1)) * 100;
-  return Math.min(100, Math.max(0, percent));
-}
-
-/** 남은 시간을 사람이 읽는 문자열로. 분/초를 함께 보여준다 — 초가 0이면 초는 생략한다. */
 export function formatRemaining(seconds: number | null): string {
   if (seconds === null) return '—';
   if (seconds <= 0) return '곧 도착';
-  if (seconds < 60) return `${seconds}초`;
 
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
+  const whole = Math.round(seconds);
+  if (whole < 60) return `${whole}초`;
+  const minutes = Math.floor(whole / 60);
+  const rest = whole % 60;
   return rest === 0 ? `${minutes}분` : `${minutes}분 ${rest}초`;
 }
 
 /**
- * 데이터가 갱신된 시각(updatedAtIso) 이후 브라우저에서 흐른 초만큼 남은 시간을 줄여 계산한다.
- * 자동 재조회 없이 화면에서만 초 단위로 째깍이게 하기 위한 순수 함수 — 네트워크 호출은 없다.
- * formatRelativeTime과 마찬가지로 파싱 불가능한 날짜는 null로 처리한다.
+ * 열차 위에 띄울 짧은 안내. 대부분 null이고:
+ * - "도착": 어느 역이든 정차 중(ARRIVED). 내 역이면 "도착했다", 중간 역이면 "그 역에 서 있다".
+ * - "곧 도착": 내 역(선택역)에 진입 중(APPROACHING). 코앞이라 초는 못 믿으니 문구로.
+ * 표시 위치(시간 자리 vs 역 위)는 내 역 여부에 따라 TrainMarker가 정한다.
  */
-export function remainingAt(
-  remainingSeconds: number | null,
-  updatedAtIso: string,
-  nowMs: number,
-): number | null {
-  if (remainingSeconds === null) return null;
-
-  const updatedMs = new Date(updatedAtIso).getTime();
-  if (!Number.isFinite(updatedMs)) return null;
-
-  const elapsedSeconds = Math.max(0, Math.floor((nowMs - updatedMs) / 1000));
-  return Math.max(0, remainingSeconds - elapsedSeconds);
+export function trainCallout(train: Train, isSelectedStation: boolean): '도착' | '곧 도착' | null {
+  if (train.status === 'ARRIVED') return '도착';
+  if (isSelectedStation && train.status === 'APPROACHING') return '곧 도착';
+  return null;
 }

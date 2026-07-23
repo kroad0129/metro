@@ -19,7 +19,7 @@
 
 .line-track {
   position: relative;
-  height: 3.5rem;
+  height: 4rem;
 }
 
 .line-track__rail {
@@ -32,12 +32,15 @@
 }
 
 .line-track__stations {
-  display: flex;
-  justify-content: space-between;
-  padding-top: 0.6rem;
+  position: absolute;
+  top: 0.6rem;
+  left: 0;
+  right: 0;
 }
 
 .line-track__station {
+  position: absolute;
+  transform: translateX(-50%);
   font-size: 0.7rem;
   color: #999;
   white-space: nowrap;
@@ -55,6 +58,15 @@
   right: 0;
 }
 
+@keyframes train-marker-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .train-marker {
   position: absolute;
   top: -0.35rem;
@@ -62,7 +74,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  transition: left 0.4s ease-out;
+  /* 새 열차가 뜰 때 톡 튀어나오지 않게 부드럽게 나타난다(첫 마운트에만 재생). */
+  animation: train-marker-in 0.4s ease-out;
+  /* 가상 열차(virtualTrain)가 매초(useNow) 위치를 다시 계산한다. 1초짜리 등속 트랜지션이
+     그 초 단위 스텝 사이를 이어 점이 끊김 없이 흐르게 한다. 폴링으로 위상이 갱신돼
+     위치가 당겨질 때도 순간이동 대신 미끄러진다. */
+  transition: left 1s linear;
 }
 
 /* dot-wrap은 예전 .train-marker__dot과 정확히 같은 크기를 유지한다 —
@@ -79,7 +96,7 @@
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: #c8102e;
+  background: var(--train-color);
 }
 
 .train-marker__arrow {
@@ -87,17 +104,40 @@
   left: 100%;
   top: 50%;
   transform: translateY(-50%);
-  margin-left: 1px;
-  font-size: 0.5rem;
+  margin-left: 3px;
+  font-size: 0.95rem;
   line-height: 1;
-  color: #c8102e;
+  color: var(--train-color);
+}
+
+/* 열차 종류로 점·화살표 색을 구분한다: 일반 초록, 급행 빨강. */
+.train-marker--local {
+  --train-color: #1a7f37;
+}
+
+.train-marker--express {
+  --train-color: #c8102e;
 }
 
 .train-marker__time {
   margin-top: 1.6rem;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #c8102e;
+  color: #1a1a1a;
+  white-space: nowrap;
+}
+
+/* 점 바로 위에 뜨는 짧은 안내("도착"/"곧 도착"). 절대 위치라 점을 아래로 밀지 않는다.
+   정차한 점은 역에 붙어 있으므로 이 안내는 자연히 그 역 위에 뜬다. */
+.train-marker__callout {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--train-color);
   white-space: nowrap;
 }
 
