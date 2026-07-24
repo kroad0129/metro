@@ -24,7 +24,6 @@ export type Train = {
   currentStation: Station;
   remainingSeconds: number | null;
   status: TrainStatus;
-  positionRatio: number;
   /** 조회한 역까지 남은 정거장 수. 화면이 위치를 그릴 때 쓰는 기준. */
   stationsAway: number | null;
   /** remainingSeconds 기준 시각(ISO). 화면이 여기서부터 카운트다운한다. */

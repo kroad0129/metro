@@ -1,12 +1,7 @@
 import type { DirectionBlock, Station, Train } from '../types/subway';
 import { segmentPercents, trainPlacement } from './placement';
 import { buildTrack } from './trackPosition';
-import {
-  DELAY_NOTICE_SECONDS,
-  leftPercentFromGaps,
-  liveRemainingSeconds,
-  stallSeconds,
-} from './virtualTrain';
+import { leftPercentFromGaps, liveRemainingSeconds } from './virtualTrain';
 
 /**
  * 한 방향 패널의 배치 계산 — 트랙에 그릴 역들과, 각 열차의 트랙 좌표·남은 시간·지연 여부.
@@ -20,7 +15,6 @@ export type TrackPos =
 export type PlacedTrain = {
   train: Train;
   remaining: number | null;
-  delayed: boolean;
   pos: TrackPos;
 };
 
@@ -57,7 +51,6 @@ export function layoutDirection(
       // 내 역을 지나간 열차는 그리지도, "다음 열차"로 세지도 않는다.
       passed: placement === null && train.stationsAway === 0,
       remaining: liveRemainingSeconds(train, nowMs),
-      delayed: stallSeconds(train, nowMs) > DELAY_NOTICE_SECONDS,
     };
   });
 

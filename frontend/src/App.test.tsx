@@ -34,7 +34,6 @@ function trainsResponse(over: Partial<TrainsResponse> = {}): TrainsResponse {
             currentStation: stations[2],
             remainingSeconds: 120,
             status: 'TRAVELING',
-            positionRatio: 0.5,
             stationsAway: 1,
             recptnAt: new Date().toISOString(),
           },

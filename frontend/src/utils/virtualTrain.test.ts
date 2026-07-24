@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Train, TrainStatus } from '../types/subway';
-import {
-  leftPercentFromGaps,
-  liveRemainingSeconds,
-  nextStationSeconds,
-  stallSeconds,
-} from './virtualTrain';
+import { leftPercentFromGaps, liveRemainingSeconds, nextStationSeconds } from './virtualTrain';
 
 const recptnAt = '2026-07-23T13:57:02+09:00';
 const t0 = Date.parse(recptnAt);
@@ -17,7 +12,6 @@ function train(over: Partial<Train> = {}): Train {
     currentStation: { stationId: '1009000911', name: '신목동', order: 11, isExpressStop: false },
     remainingSeconds: 345,
     status: 'TRAVELING' as TrainStatus,
-    positionRatio: 0.5,
     stationsAway: 3,
     recptnAt,
     segmentStartedAtMs: t0,
@@ -64,6 +58,30 @@ describe('liveRemainingSeconds', () => {
     expect(liveRemainingSeconds(train(), t0 - 30_000)).toBe(345);
   });
 
+  it('정차(ARRIVED) 중이면 카운트다운이 바닥으로 안 내려간다 — 대피 중 거짓 "곧 도착" 방지', () => {
+    // 사평에 서서 급행을 보내는 일반: 아직 출발 전이라 구간 소요(95초)는 반드시 남는다.
+    // 예전엔 바닥(~19초)까지 내려가 거짓 곧도착 + 앞선 급행보다 위로 오는 오정렬을 만들었다.
+    const held = train({ status: 'ARRIVED', stationsAway: 1, remainingSeconds: 95 });
+    expect(liveRemainingSeconds(held, t0)).toBe(95);
+    expect(liveRemainingSeconds(held, t0 + 90_000)).toBe(95); // 90초 서 있어도 유지
+  });
+
+  it('정차하다 출발하면 구간 처음(전체 소요)부터 센다 — 스냅 없이', () => {
+    // moveStartMs가 출발 순간, moveStartRemainingSeconds가 구간 전체(95)면 그로부터 내려간다.
+    // segmentStartedAtMs가 오래됐어도(대피로 오래 서 있었어도) 그걸 기준으로 삼지 않는다.
+    const departed = train({
+      status: 'DEPARTED',
+      stationsAway: 1,
+      remainingSeconds: 95,
+      segmentStartedAtMs: t0 - 200_000,
+      moveStartMs: t0,
+      moveStartRemainingSeconds: 95,
+      floorSeconds: 19,
+    });
+    expect(liveRemainingSeconds(departed, t0)).toBe(95);
+    expect(liveRemainingSeconds(departed, t0 + 30_000)).toBe(65);
+  });
+
   it('남은 시간을 모르면 null이다', () => {
     expect(liveRemainingSeconds(train({ remainingSeconds: null }), t0)).toBeNull();
   });
@@ -87,21 +105,6 @@ describe('liveRemainingSeconds', () => {
       t0 + 40_000,
     );
     expect(afterRecptnBumped!).toBeLessThan(before!);
-  });
-});
-
-describe('stallSeconds', () => {
-  it('추정 소요를 넘겨 같은 구간에 머물면 초과분이 지연이다', () => {
-    // 345→230 구간(span 115초)을 다 썼고 30초 더 지났다
-    expect(stallSeconds(train(), t0 + 145_000)).toBeCloseTo(30);
-    expect(stallSeconds(train(), t0 + 60_000)).toBe(0); // 아직 예산 안
-  });
-
-  it('역에 서 있는 상태(도착·진입)는 지연이 아니다 — 배치 모델과 같은 기준', () => {
-    expect(stallSeconds(train({ status: 'ARRIVED' }), t0 + 999_000)).toBe(0);
-    expect(stallSeconds(train({ status: 'APPROACHING', stationsAway: 1 }), t0 + 999_000)).toBe(0);
-    // 내 역 진입(d=0)도 화면에서는 역 위의 점 — 지연을 붙이지 않는다 (재생 검증에서 잡은 결함)
-    expect(stallSeconds(train({ status: 'APPROACHING', stationsAway: 0 }), t0 + 999_000)).toBe(0);
   });
 });
 

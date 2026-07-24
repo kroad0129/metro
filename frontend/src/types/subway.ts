@@ -15,7 +15,6 @@ export type Train = {
   currentStation: Station;
   remainingSeconds: number | null;
   status: TrainStatus;
-  positionRatio: number;
   /** 선택역까지 남은 정거장 수(ordkey에서 추출). 위치의 기준. */
   stationsAway: number | null;
   /** remainingSeconds가 산출된 시각(ISO). */

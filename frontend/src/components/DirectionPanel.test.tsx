@@ -23,7 +23,6 @@ function train(over: Partial<Train> = {}): Train {
     currentStation: stations[8], // order 9
     remainingSeconds: 120,
     status: 'TRAVELING',
-    positionRatio: 0.5,
     stationsAway: 1, // 전역
     recptnAt,
     segmentStartedAtMs: now, // 방금 이 구간에 들어왔다

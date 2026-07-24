@@ -12,7 +12,6 @@ function train(over: Partial<Train> = {}): Train {
     currentStation: { stationId: '1009000909', name: '등촌', order: 9, isExpressStop: false },
     remainingSeconds: 225,
     status: 'TRAVELING' as TrainStatus,
-    positionRatio: 0.5,
     stationsAway: 2,
     recptnAt: '2026-07-23T13:57:02+09:00',
     ...over,
@@ -87,11 +86,10 @@ describe('trackSegments', () => {
     );
     const annotated = firstTrain(departed.response);
     expect(annotated.moveStartMs).toBe(t0 + 30_000);
-    // 처음 관측 시 "절반 경과" 가정(38초) + 정차 30초 = 68초 경과 → 95-68=27에서 이동 시작.
-    // 핵심은 barvlDt 원값(95)이 아니라 "그 순간의 남은 시간"에서 출발한다는 것 —
-    // 정차 중 소모된 진행률만큼 점이 앞으로 확 뛰지 않는다.
-    expect(annotated.moveStartRemainingSeconds).toBeCloseTo(27);
-    expect(annotated.moveStartRemainingSeconds!).toBeLessThan(95);
+    // 출발 순간 = 구간 처음이므로 전체 소요(barvlDt 95)부터 센다. 정차 중에도 카운트다운은
+    // 바닥으로 안 내려가고 95에 얼려 있으므로(대피 중 거짓 곧도착 방지), 출발할 때 95에서
+    // 이어져 스냅이 없다 — 예전처럼 정차 중 소모된 값(27)에서 시작하지 않는다.
+    expect(annotated.moveStartRemainingSeconds).toBe(95);
   });
 
   it('한 폴링에서 사라진 열차의 앵커를 잠시 보존한다 — 수신 흔들림에 기준이 리셋되지 않는다', () => {

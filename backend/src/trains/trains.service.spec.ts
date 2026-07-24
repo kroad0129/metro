@@ -78,12 +78,6 @@ describe('TrainsService', () => {
     });
   });
 
-  it('status에 맞는 positionRatio를 채운다', async () => {
-    const { service } = build(async () => [rawTrain({ status: 'APPROACHING' })]);
-    const result = await service.getTrains('9', 증미);
-    expect(result.directions[0].trains[0].positionRatio).toBe(0.75);
-  });
-
   it('매칭되지 않는 역명의 열차는 버린다', async () => {
     const { service } = build(async () => [rawTrain({ currentStationName: '강남' })]);
     const result = await service.getTrains('9', 증미);

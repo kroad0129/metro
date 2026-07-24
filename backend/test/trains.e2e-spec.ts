@@ -75,7 +75,6 @@ describe('GET /api/lines/:lineId/stations/:stationId/trains', () => {
       trainId: '9134',
       trainType: 'LOCAL',
       remainingSeconds: 125,
-      positionRatio: 0.25,
     });
     expect(res.body.stale).toBe(false);
     expect(typeof res.body.updatedAt).toBe('string');

@@ -1,39 +1,39 @@
-.mock-page__header {
-  padding: 0.75rem 0.75rem 0;
+/* 패널은 위에 고정, 시나리오는 아래에서 스크롤 — 토글하며 결과를 바로 본다. */
+.mock-page__stage {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #fff;
+  border-bottom: 1px solid #e5e5e5;
+  padding-bottom: 0.4rem;
 }
 
-.mock-page__title {
-  margin: 0;
-  font-size: 1rem;
+.mock-page__controls {
+  padding: 0.5rem 0.75rem 1rem;
 }
 
 .mock-page__hint {
-  margin: 0.35rem 0 0.5rem;
+  margin: 0.25rem 0 0.6rem;
   font-size: 0.78rem;
-  color: #888;
+  line-height: 1.5;
+  color: #666;
 }
 
-.mock-page__clear {
-  padding: 0.25rem 0.6rem;
-  font-size: 0.78rem;
-  border: 1px solid #ccc;
-  border-radius: 0.3rem;
-  background: #fff;
-  cursor: pointer;
+.mock-page__hint code {
+  padding: 0 0.2rem;
+  background: #f0f0f0;
+  border-radius: 0.2rem;
 }
 
 .mock-page__scenarios {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
   gap: 0.5rem;
-  padding: 0.5rem 0.75rem 0.75rem;
-  border-bottom: 1px solid #e5e5e5;
 }
 
 .mock-page__group {
-  flex: 1 1 14rem;
   margin: 0;
-  padding: 0.4rem 0.6rem 0.5rem;
+  padding: 0.3rem 0.55rem 0.45rem;
   border: 1px solid #e0e0e0;
   border-radius: 0.4rem;
 }
@@ -42,15 +42,49 @@
   padding: 0 0.25rem;
   font-size: 0.72rem;
   font-weight: 700;
-  color: #666;
+  color: #555;
 }
 
 .mock-page__option {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.78rem;
-  line-height: 1.7;
+}
+
+.mock-page__option-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.76rem;
+  line-height: 1.5;
   color: #333;
+  cursor: pointer;
+}
+
+.mock-page__solo {
+  flex: none;
+  padding: 0 0.35rem;
+  font-size: 0.66rem;
+  color: #777;
+  background: #f6f6f6;
+  border: 1px solid #ddd;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.mock-page__solo:hover {
+  color: #1a7f37;
+  border-color: #1a7f37;
+}
+
+.mock-page__clear {
+  margin-top: 0.6rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+  border: 1px solid #ccc;
+  border-radius: 0.3rem;
+  background: #fff;
   cursor: pointer;
 }

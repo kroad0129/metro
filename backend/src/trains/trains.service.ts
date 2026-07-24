@@ -4,7 +4,6 @@ import { LinesService } from '../lines/lines.service';
 import { DirectionId, Station } from '../lines/types';
 import { SeoulApiClient } from '../seoul-api/seoul-api.client';
 import { TimetableService } from './timetable.service';
-import { positionRatioOf } from './train-position';
 import { LineNotFoundError, StationNotFoundError } from './trains.errors';
 import { DirectionBlock, RawTrain, Train, TrainsResponse } from './types';
 
@@ -126,7 +125,6 @@ export class TrainsService {
       currentStation: current,
       remainingSeconds: raw.remainingSeconds,
       status: raw.status,
-      positionRatio: positionRatioOf(raw.status),
       // ordkey가 없거나 형식이 어긋나면 역 순번 차이로 대체한다.
       stationsAway: raw.stationsAway ?? Math.abs(station.order - current.order),
       recptnAt: raw.recptnAt,

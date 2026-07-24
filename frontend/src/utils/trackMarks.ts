@@ -25,9 +25,22 @@ export function namePercent(index: number, count: number, flip: boolean): number
   return flip ? 100 - raw : raw;
 }
 
-/** 상태 딱지 — 정차·진입·출발·이동을 글자로도 알린다. */
+/**
+ * 급행이 서지 않는 역에 걸쳐 있는가 — 통과 중이라는 뜻이다.
+ * 급행이 통과역을 지날 때 API가 잠깐 전역도착(ARRIVED)을 주는데, 그걸 "정차"로 그리면
+ * 급행이 역마다 멈추는 것처럼 보인다. 역이 급행 정차역인지(isExpressStop)로 갈라낸다.
+ */
+export function isPassing(train: Train): boolean {
+  return (
+    train.trainType === 'EXPRESS' &&
+    train.status === 'ARRIVED' &&
+    !train.currentStation.isExpressStop
+  );
+}
+
+/** 상태 딱지 — 정차·통과·진입·출발·이동을 글자로도 알린다. */
 export function stateLabel(train: Train): string {
-  if (train.status === 'ARRIVED') return '정차';
+  if (train.status === 'ARRIVED') return isPassing(train) ? '통과' : '정차';
   if (train.status === 'APPROACHING') return '진입';
   if (train.status === 'DEPARTED') return '출발';
   return '이동';
@@ -45,7 +58,9 @@ export function headline(train: Train, remaining: number | null, selectedName: s
 /** 스크린리더가 읽을 위치 설명 — 화면에는 색과 모양으로만 나오는 정보를 말로 준다. */
 export function describePosition(train: Train): string {
   const type = train.trainType === 'EXPRESS' ? '급행' : '일반';
-  if (train.status === 'ARRIVED') return `${type}, ${train.currentStation.name} 정차`;
+  if (train.status === 'ARRIVED') {
+    return `${type}, ${train.currentStation.name} ${isPassing(train) ? '통과' : '정차'}`;
+  }
   if (train.status === 'APPROACHING') return `${type}, ${train.currentStation.name} 진입`;
   return `${type}, ${train.currentStation.name} 출발, 이동 중`;
 }
@@ -76,12 +91,14 @@ export function groupMarks(placed: PlacedTrain[]): MarkGroup[] {
   const flush = () => {
     if (current.length === 0) return;
     const centers = current.map((c) => c.center);
+    // 딱지는 급행 우선 — 일반이 서 있고 급행이 그 위를 지나가면 "정차"가 아니라 "통과"를 보인다.
+    const lead = current.find((c) => c.p.train.trainType === 'EXPRESS') ?? current[0];
     groups.push({
       key: current.map((c) => c.p.train.trainId).join('+'),
       center: centers.reduce((a, b) => a + b, 0) / centers.length,
       moving: current[0].moving,
       types: [...new Set(current.map((c) => c.p.train.trainType))],
-      state: stateLabel(current[0].p.train),
+      state: stateLabel(lead.p.train),
       label: current.map((c) => describePosition(c.p.train)).join(', '),
     });
     current = [];

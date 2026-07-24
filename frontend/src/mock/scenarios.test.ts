@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { DELAY_NOTICE_SECONDS, stallSeconds } from '../utils/virtualTrain';
 import { combineScenarios, MOCK_SELECTED, MOCK_STATIONS, SCENARIOS } from './scenarios';
 
 const base = Date.parse('2026-07-23T20:00:00+09:00');
@@ -24,12 +23,6 @@ describe('목업 시나리오', () => {
     expect(MOCK_STATIONS.some((s) => s.stationId === MOCK_SELECTED.stationId)).toBe(true);
     const orders = MOCK_STATIONS.map((s) => s.order);
     expect(new Set(orders).size).toBe(orders.length);
-  });
-
-  it('"지연" 시나리오의 열차는 실제로 지연 배지 임계를 넘는다', () => {
-    const { up } = combineScenarios(['지연'], base);
-    expect(up.trains).toHaveLength(1);
-    expect(stallSeconds(up.trains[0], base)).toBeGreaterThan(DELAY_NOTICE_SECONDS);
   });
 
   it('"겹침-구간"은 같은 구간을 달리는 일반+급행이다', () => {

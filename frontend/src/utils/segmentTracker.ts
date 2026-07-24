@@ -29,7 +29,10 @@ export type AnchorMap = Map<string, SegmentAnchor>;
 /** 사라진 열차의 앵커를 얼마나 보존할지. 폴링 몇 번의 수신 흔들림을 덮는다. */
 const KEEP_UNSEEN_MS = 90_000;
 
-/** 역(도착/진입)에 붙어 서 있어야 하는 상태인가. 내 역 진입(d=0)만은 이동으로 본다. */
+/**
+ * 점이 역에 붙어 서 있어야 하는 상태인가 — 도착이거나 전역 진입이면 그렇다. 내 역 진입(d=0)만은
+ * 점이 내 역으로 미끄러져 들어와야 하므로 이동으로 본다.
+ */
 function isParked(status: TrainStatus, stationsAway: number): boolean {
   if (status === 'ARRIVED') return true;
   return status === 'APPROACHING' && stationsAway > 0;
@@ -79,9 +82,11 @@ export function trackSegments(
           moveStartMs = null;
           moveStartRemainingSeconds = null;
         } else if (wasParked || old.moveStartMs === null) {
-          // 정차 → 출발을 방금 관측 — 지금 위치(역)에서 남은 시간으로 이동을 시작한다.
+          // 정차 → 출발을 방금 관측. 출발 순간 = 구간 처음이므로 전체 소요(barvlDt)부터 센다.
+          // 대피로 오래 서 있던 열차도 바닥이 아니라 여기서 시작해야, 정차 중 얼려둔 값(barvlDt)과
+          // 끊김 없이 이어지고 거짓 "곧 도착"이 생기지 않는다.
           moveStartMs = nowMs;
-          moveStartRemainingSeconds = liveAt(remainingSeconds, floor, startedAtMs, nowMs);
+          moveStartRemainingSeconds = remainingSeconds;
         } else {
           moveStartMs = old.moveStartMs;
           moveStartRemainingSeconds = old.moveStartRemainingSeconds;
